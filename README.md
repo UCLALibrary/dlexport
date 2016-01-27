@@ -16,6 +16,8 @@ On Ubuntu, you can do the following to complete the installation:
 	sudo alien oracle-instantclient12.1-devel-12.1.0.2.0-1.x86_64.rpm # use the name of the file you downloaded earlier
 	sudo dpkg -i oracle-instantclient12.1-devel_12.1.0.2.0-2_amd64.deb
 
+Also, create a folder called 'csv' in the root directory of this project. This is where the generated csv files will be saved to.
+
 ### Python Environment
 
 Install virtualenv, then setup a virtual environment and install dependencies using the included requirements.txt:
@@ -51,15 +53,15 @@ Or, run it on your localhost to use in a browser:
 
 ### Examples
 
-Export metadata in collection 'aaa' from the 'bbb' database, and write to 'ccc.csv'.
+Export metadata in collection 'bbb' from the 'aaa' database, and write to 'ccc.csv'.
 
 	python3 dlexport.py -d aaa -c bbb -w ccc.csv
 
-Export metadata in collection 'aaa' from the 'bbb' database, and write to stdout in JSON format.
+Export metadata in collection 'bbb' from the 'aaa' database, and write to stdout in JSON format.
 
 	python3 dlexport.py -d aaa -c bbb
 
-Export metadata in collection 'aaa' from the 'bbb' database, and write to 'ccc.json'.
+Export metadata in collection 'bbb' from the 'aaa' database, and write to 'ccc.json'.
 
 	python3 dlexport.py -d aaa -c bbb > ccc.json
 
