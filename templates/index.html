@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>DLCS Metadata Export Tool</title>
+    <link rel="shortcut icon" href="http://www.library.ucla.edu/sites/all/themes/uclalib_omega/favicon.ico" type="image/vnd.microsoft.icon">
+    <meta charset="utf-8">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+  </head>
+  <body>
+    <h1>Digital Library Metadata Export</h1>
+    <form method="post">
+      database:
+      <select name="db">
+      {% for db in databases %}
+        <option value="{{ db[0] }}">{{ db[0] }}</option>
+      {% endfor %}
+      </select>
+      <br>
+      collection name:
+      <!--  generate list of collections -->
+      <select name="appname">
+      {% for db in databases %}
+        {% for collection in db[1] %}
+        <option class="{{ db[0] }}" value="{{ collection[1] }}">{{ collection[0] }}</option>
+        {% endfor %}
+      {% endfor %}
+      </select>
+      <br>
+      download file as:
+      <input type="text" name="outfile">.csv
+      <br>
+
+      <!-- TODO: add option for char encoding -->
+
+      <input type="submit" name="submit" value="Download">
+    </form>
+    <p>How to import into Microsoft Excel:</p>
+    <img src="{{ url_for('static', filename='images/excel_import_metadata.png') }}" alt="excel import instructions">
+    <script>
+        $(document).ready(function() {
+
+            var db_list = {{ databases|tojson|safe }};
+            var default_db = "lit106";
+            var hideAllExcept = function(db) {
+                var i;
+                for (i = 0; i < db_list.length; i += 1) {
+                    database = db_list[i][0];
+                    if (database != db) {
+                        $("option." + database).css("display", "none");
+                    }
+                    else {
+                        $("option." + database).css("display", ""); 
+                    }
+                }
+                $("select[name='appname']").val($("select[name='appname'] > option." + db)[0].value);
+            };
+
+            $("select[name='db']").change(function() {
+                hideAllExcept($("select[name='db']").val());
+            });
+
+            $("select[name='db']").val(default_db);
+            hideAllExcept(default_db);
+            $("select[name='appname']").val($("select[name='appname'] > option." + default_db)[0].value);
+        });
+    </script>  
+  </body>
+</html>
