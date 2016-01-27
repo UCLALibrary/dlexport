@@ -22,9 +22,17 @@ Install virtualenv, then setup a virtual environment and install dependencies us
 
 	sudo pip3 install virtualenv
 	cd dlexport
-	virtualenv venv-dlexport
-	. venv-dlexport/bin/activate
+	virtualenv venv-dlexport # create virtualenv
+	. venv-dlexport/bin/activate # start up virtualenv
 	pip3 install -r requirements.txt
+
+To exit your virtual environment:
+
+	deactivate
+	
+To destroy it:
+
+	rm -rf venv-dlexport
 
 ### Secrets
 
