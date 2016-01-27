@@ -51,15 +51,15 @@ Or, run it on your localhost to use in a browser:
 
 ### Examples
 
-Export metadata in collection 'aaa' from the 'bbb' database, and write to 'ccc.csv'.
+Export metadata in collection 'bbb' from the 'aaa' database, and write to 'ccc.csv'.
 
 	python3 dlexport.py -d aaa -c bbb -w ccc.csv
 
-Export metadata in collection 'aaa' from the 'bbb' database, and write to stdout in JSON format.
+Export metadata in collection 'bbb' from the 'aaa' database, and write to stdout in JSON format.
 
 	python3 dlexport.py -d aaa -c bbb
 
-Export metadata in collection 'aaa' from the 'bbb' database, and write to 'ccc.json'.
+Export metadata in collection 'bbb' from the 'aaa' database, and write to 'ccc.json'.
 
 	python3 dlexport.py -d aaa -c bbb > ccc.json
 
