@@ -1,0 +1,5 @@
+backup
+csv
+*.pyc
+__pycache__
+*secrets*
