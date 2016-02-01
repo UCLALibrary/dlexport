@@ -1,22 +1,21 @@
-Use this utility to export project metadata from DLCS in CSV or JSON format.
+Use this utility to export project metadata from DLCS in CSV format.
 
 # Setup
+
+## Secrets
+
+This utility requires a secret file to work.  
+Email mmatney@library.ucla.edu to request the file, and move it to the root directory of this project.
+
+## Local Deployment
 
 ### System
 
 Python 3.4, pip3, virtualenv, and an Oracle database client must be installed on the host machine.
 
-For the Oracle db client, I used 'oracle-instantclient'. First, go to
+For the Oracle DB client, I used 'oracle-instantclient'. First, go to
 http://www.oracle.com/technetwork/database/features/instant-client/index-097480.html
-to choose your system platform, accept the user agreement, and download and install "Instant Client Package - SDK".
-
-On Ubuntu, you can do the following to complete the installation:
-
-	cd /path/to/download
-	sudo alien oracle-instantclient12.1-devel-12.1.0.2.0-1.x86_64.rpm # use the name of the file you downloaded earlier
-	sudo dpkg -i oracle-instantclient12.1-devel_12.1.0.2.0-2_amd64.deb
-
-Also, create a folder called 'csv' in the root directory of this project. This is where the generated csv files will be saved to.
+to choose your system platform, accept the user agreement, and download and install both "Instant Client Package - Basic" and "Instant Client Package - SDK". Installation instructions can be found on that same webpage.
 
 ### Python Environment
 
@@ -36,10 +35,28 @@ To destroy it:
 
 	rm -rf venv-dlexport
 
-### Secrets
+## Remote Deployment - AWS Elastic Beanstalk
 
-This utility requires a secret file to work.  
-Email mmatney@library.ucla.edu to request the file, and move it to the root directory of this project.
+To deploy to elastic beanstalk, first install the EB CLI on your system. Then,
+
+	cd dlexport
+	eb init --region us-west-1
+	eb create
+	
+The deployment will fail because the Oracle DB client is not installed on the server. To do this, download the Oracle DB client .rpm for both "Instant Client Package - Basic" and "Instant Client Package - SDK" (assuming we are running Amazon Linux on our EB). First, obtain a .pem with your private key in order to connect to the server. Then, transfer the files with scp, ssh to install them, and re-deploy:
+
+	scp -v -i private-key.pem \
+		oracle-instantclient12.1-basic-12.1.0.2.0-1.x86_64.rpm \
+		oracle-instantclient12.1-devel-12.1.0.2.0-1.x86_64.rpm \
+		ec2-user@YOUR.EC2.IP.ADDR:~/
+	eb ssh
+	sudo rpm -ivh \
+		oracle-instantclient12.1-basic-12.1.0.2.0-1.x86_64.rpm \
+		oracle-instantclient12.1-devel-12.1.0.2.0-1.x86_64.rpm
+	export LD_LIBRARY_PATH=/usr/lib/oracle/12.1/client64/lib:$LD_LIBRARY_PATH
+	export PATH=/usr/lib/oracle/12.1/client64/bin:$PATH
+	logout
+	eb deploy
 
 # Usage
 
@@ -51,17 +68,9 @@ Or, run it on your localhost to use in a browser:
 
 	python3 application.py
 
-### Examples
+## Examples
 
 Export metadata in collection 'bbb' from the 'aaa' database, and write to 'ccc.csv'.
 
-	python3 dlexport.py -d aaa -c bbb -w ccc.csv
-
-Export metadata in collection 'bbb' from the 'aaa' database, and write to stdout in JSON format.
-
-	python3 dlexport.py -d aaa -c bbb
-
-Export metadata in collection 'bbb' from the 'aaa' database, and write to 'ccc.json'.
-
-	python3 dlexport.py -d aaa -c bbb > ccc.json
+	python3 dlexport.py -d aaa -c bbb > ccc.csv
 
