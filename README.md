@@ -49,7 +49,7 @@ This utility can be used at the command line. Show usage with:
 
 Or, run it on your localhost to use in a browser:
 
-	python3 webapp.py
+	python3 application.py
 
 ### Examples
 
