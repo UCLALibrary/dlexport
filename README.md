@@ -18,45 +18,59 @@ to choose your system platform, accept the user agreement, and download and inst
 
 Install virtualenv, then setup a virtual environment and install dependencies using the included requirements.txt:
 
-	sudo pip3 install virtualenv
-	cd dlexport
-	virtualenv venv-dlexport # create virtualenv
-	. venv-dlexport/bin/activate # start up virtualenv
-	pip3 install -r requirements.txt
+```Shell
+sudo pip3 install virtualenv
+cd dlexport
+virtualenv venv-dlexport # create virtualenv
+. venv-dlexport/bin/activate # start up virtualenv
+pip3 install -r requirements.txt
+```
 
 ### CLI
 
 Keep the virtualenv running to use this utility at the command line. Show usage with:
 
-	python3 dlexport.py -h
+```Shell
+python3 dlexport.py -h
+```
 
 For example, to export metadata in collection 'bbb' from the 'aaa' database, and write to 'ccc.csv':
 
-	python3 dlexport.py -d aaa -c bbb > ccc.csv
+```Shell
+python3 dlexport.py -d aaa -c bbb > ccc.csv
+```
 
 ### GUI
 
 Here's how to start up a local server to use it in a browser:
 
-	python3 application.py
+```Shell
+python3 application.py
+```
 
 ### Cleanup
 
 To exit your virtual environment:
 
-	deactivate
-	
+```Shell
+deactivate
+```
+
 To destroy it forever:
 
-	rm -rf venv-dlexport
+```Shell
+rm -rf venv-dlexport
+```
 
 ## Remote Hosting - AWS Elastic Beanstalk
 
 To deploy to Elastic Beanstalk, first install the EB CLI on your system. Then:
 
-	cd dlexport
-	eb init
-	
+```Shell
+cd dlexport
+eb init
+```
+
 There will be a series of prompts.
 
 For "default region", select US West (N. California).
@@ -65,7 +79,9 @@ For "aws-access-id" and "aws-secret-key", go [here](http://docs.aws.amazon.com/g
 
 For "application to use", create a new application. Choose Python 3.4, and setup SSH with a new key pair. Now create a new single-instance environment:
 
-	eb create --single
+```Shell
+eb create --single
+```
 
 The deployment will fail with
 
@@ -73,25 +89,29 @@ The deployment will fail with
 
 because the Oracle DB client is not installed on the server. To fix this, go [here](http://www.oracle.com/technetwork/database/features/instant-client/index-097480.html) to download the Oracle DB client .rpm for both "Instant Client Package - Basic" and "Instant Client Package - SDK" (assuming we are running Amazon Linux on our EB instance). Then, transfer the files with scp, ssh to install them, and re-deploy:
 
-	scp \
-		oracle-instantclient12.1-basic-12.1.0.2.0-1.x86_64.rpm \
-		oracle-instantclient12.1-devel-12.1.0.2.0-1.x86_64.rpm \
-		ec2-user@YOUR.EC2.DOMAIN.NAME:~
-	eb ssh
-	sudo rpm -i \
-		oracle-instantclient12.1-basic-12.1.0.2.0-1.x86_64.rpm \
-		oracle-instantclient12.1-devel-12.1.0.2.0-1.x86_64.rpm
-	export LD_LIBRARY_PATH=/usr/lib/oracle/12.1/client64/lib:$LD_LIBRARY_PATH
-	export PATH=/usr/lib/oracle/12.1/client64/bin:$PATH
-	logout
-	eb deploy
-	
+```Shell
+scp \
+oracle-instantclient12.1-basic-12.1.0.2.0-1.x86_64.rpm \
+oracle-instantclient12.1-devel-12.1.0.2.0-1.x86_64.rpm \
+ec2-user@YOUR.EC2.DOMAIN.NAME:~
+eb ssh
+sudo rpm -i \
+oracle-instantclient12.1-basic-12.1.0.2.0-1.x86_64.rpm \
+oracle-instantclient12.1-devel-12.1.0.2.0-1.x86_64.rpm
+export LD_LIBRARY_PATH=/usr/lib/oracle/12.1/client64/lib:$LD_LIBRARY_PATH
+export PATH=/usr/lib/oracle/12.1/client64/bin:$PATH
+logout
+eb deploy
+```
+
 The deploy will succeed, but pointing a browser to the app URL returns HTTP 500. To fix this, move the secrets file to the correct place on the server:
 
-	scp \
-		db-secrets.json \
-		ec2-user@YOUR.EC2.DOMAIN.NAME:~
-	eb ssh
-	sudo mv db-secrets.json /opt/python/current/app
-	logout
-	eb open
+```Shell
+scp \
+db-secrets.json \
+ec2-user@YOUR.EC2.DOMAIN.NAME:~
+eb ssh
+sudo mv db-secrets.json /opt/python/current/app
+logout
+eb open
+```
