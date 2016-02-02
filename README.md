@@ -12,7 +12,7 @@ Email mmatney@library.ucla.edu to request the file, and move it to the root dire
 Python 3.4, pip3, virtualenv, and an Oracle database client must be installed on the host machine.
 
 For the Oracle DB client, I used 'oracle-instantclient'. First, go [here](http://www.oracle.com/technetwork/database/features/instant-client/index-097480.html)
-to choose your system platform, accept the user agreement, and download and install both "Instant Client Package - Basic" and "Instant Client Package - SDK". Installation instructions can be found at the bottomof that webpage.
+to choose your system platform, accept the user agreement, and download and install both "Instant Client Package - Basic" and "Instant Client Package - SDK". Installation instructions can be found at the bottom of that webpage.
 
 ### Python Environment
 
@@ -36,7 +36,7 @@ For example, to export metadata in collection 'bbb' from the 'aaa' database, and
 
 ### GUI
 
-Here's how to use it in a browser:
+Here's how to start up a local server to use it in a browser:
 
 	python3 application.py
 
