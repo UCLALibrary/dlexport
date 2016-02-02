@@ -1,11 +1,8 @@
-# Setup
+# Secrets
 
-## Secrets
+This utility requires a secret file for both local and remote hosting. Email mmatney@library.ucla.edu to request the file, and move it to the root directory of this project.
 
-This utility requires a secret file for both local and remote hosting.  
-Email mmatney@library.ucla.edu to request the file, and move it to the root directory of this project.
-
-## Local Hosting
+# Local Hosting
 
 ### System
 
@@ -42,7 +39,7 @@ python3 dlexport.py -d aaa -c bbb > ccc.csv
 
 ### GUI
 
-Here's how to start up a local server to use it in a browser:
+Here's how to run the web app on localhost:
 
 ```Shell
 python3 application.py
@@ -62,9 +59,9 @@ To destroy it forever:
 rm -rf venv-dlexport
 ```
 
-## Remote Hosting - AWS Elastic Beanstalk
+# Remote Hosting - AWS Elastic Beanstalk
 
-To deploy to Elastic Beanstalk, first [install the EB CLI](http://docs.aws.amazon.com/elasticbeanstalk/latest/dg/eb-cli3-install.html) on your system. Then:
+To deploy the web app to Elastic Beanstalk, first [install the EB CLI](http://docs.aws.amazon.com/elasticbeanstalk/latest/dg/eb-cli3-install.html) on your system. Then:
 
 ```Shell
 cd dlexport
@@ -90,6 +87,7 @@ The deployment will fail with
 because the Oracle DB client is not installed on the server. To fix this, go [here](http://www.oracle.com/technetwork/database/features/instant-client/index-097480.html) to download the Oracle DB client .rpm for both "Instant Client Package - Basic" and "Instant Client Package - SDK" (assuming we are running Amazon Linux on our EB instance). Then, transfer the files with scp, ssh to install them, and re-deploy:
 
 ```Shell
+# your file paths may differ
 scp \
 	oracle-instantclient12.1-basic-12.1.0.2.0-1.x86_64.rpm \
 	oracle-instantclient12.1-devel-12.1.0.2.0-1.x86_64.rpm \
