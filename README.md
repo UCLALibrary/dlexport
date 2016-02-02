@@ -64,7 +64,7 @@ rm -rf venv-dlexport
 
 ## Remote Hosting - AWS Elastic Beanstalk
 
-To deploy to Elastic Beanstalk, first install the EB CLI on your system. Then:
+To deploy to Elastic Beanstalk, first [install the EB CLI](http://docs.aws.amazon.com/elasticbeanstalk/latest/dg/eb-cli3-install.html) on your system. Then:
 
 ```Shell
 cd dlexport
@@ -91,13 +91,13 @@ because the Oracle DB client is not installed on the server. To fix this, go [he
 
 ```Shell
 scp \
-oracle-instantclient12.1-basic-12.1.0.2.0-1.x86_64.rpm \
-oracle-instantclient12.1-devel-12.1.0.2.0-1.x86_64.rpm \
-ec2-user@YOUR.EC2.DOMAIN.NAME:~
+	oracle-instantclient12.1-basic-12.1.0.2.0-1.x86_64.rpm \
+	oracle-instantclient12.1-devel-12.1.0.2.0-1.x86_64.rpm \
+	ec2-user@YOUR.EC2.DOMAIN.NAME:~
 eb ssh
 sudo rpm -i \
-oracle-instantclient12.1-basic-12.1.0.2.0-1.x86_64.rpm \
-oracle-instantclient12.1-devel-12.1.0.2.0-1.x86_64.rpm
+	oracle-instantclient12.1-basic-12.1.0.2.0-1.x86_64.rpm \
+	oracle-instantclient12.1-devel-12.1.0.2.0-1.x86_64.rpm
 export LD_LIBRARY_PATH=/usr/lib/oracle/12.1/client64/lib:$LD_LIBRARY_PATH
 export PATH=/usr/lib/oracle/12.1/client64/bin:$PATH
 logout
@@ -108,8 +108,8 @@ The deploy will succeed, but pointing a browser to the app URL returns HTTP 500.
 
 ```Shell
 scp \
-db-secrets.json \
-ec2-user@YOUR.EC2.DOMAIN.NAME:~
+	db-secrets.json \
+	ec2-user@YOUR.EC2.DOMAIN.NAME:~
 eb ssh
 sudo mv db-secrets.json /opt/python/current/app
 logout
