@@ -23,6 +23,8 @@ ERR_INVALID_COLLECTION = 2
 ERR_EMPTY_COLLECTION = 3
 ERR_INVALID_FILENAME = 4
 ERR_UNKNOWN = 5
+ERR_INVALID_QUERY = 6
+# TODO: change codes to strings
 
 
 def clean(dirty):
@@ -53,17 +55,22 @@ class Dlexport:
         '''
         Stores secrets in 'private' data mamber.
         '''
-        self._secrets = loads(open(secretsFile).read())
+        with open(secretsFile) as f:
+            self._secrets = loads(f.read())
 
     def connectToDb(self, db):
-        '''.
+        '''
         Opens and returns a database connection handle.
         '''
+        if db not in self.getDatabases():
+            raise DlexportException(ERR_INVALID_DATABASE)
+
         database = self._secrets[db]
-        # TODO: if db name is invalid, throw exception
         ip = database['ip']
         port = database['port']
         sid = database['sid']
+
+        # assume the following will succeed if the secrets file is not modified
         dnsTns = cx_Oracle.makedsn(ip, port, sid)
         return cx_Oracle.connect(
             database['username'],
@@ -74,8 +81,15 @@ class Dlexport:
         '''
         Returns the desired query to be run on the given db.
         '''
-        # TODO: if query is invalid, throw exception
-        return self._secrets[db]['queries'][query]
+        dbs = self._secrets
+        if db not in list(dbs.keys()):
+            raise DlexportException(ERR_INVALID_DATABASE)
+
+        queries = dbs[db]['queries']
+        if query not in list(queries):
+            raise DlexportException(ERR_INVALID_QUERY)
+
+        return queries[query]
     
     def getDbCollections(self, db):
         '''
@@ -87,7 +101,12 @@ class Dlexport:
 
         query = self.getDbQuery(db, 'collections')
         cursor.execute(query)
-        return [[a, b] for a, b in cursor]
+        dbCollections = [[a, b] for a, b in cursor]
+
+        cursor.close()
+        conn.close()
+
+        return dbCollections
     
     def getDatabases(self, includeCollections=False):
         '''
@@ -96,11 +115,21 @@ class Dlexport:
         '''
         # Get list of keys in the secrets
         db_list = [a for a in self._secrets]
-        if includeCollections:
+        if includeCollections is True:
+            # this will not throw an exception
             return [[a, self.getDbCollections(a)] for a in db_list]
         else:
             return db_list
     
+    def isDb(self, db):
+        '''
+        Checks if db exists.
+        '''
+        if db in self.getDatabases():
+            return True
+        else:
+            return False
+
     def isCollectionInDb(self, collection, db):
         '''
         Check if collection_name is valid (exists in the given db).

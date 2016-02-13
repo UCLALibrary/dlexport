@@ -26,6 +26,14 @@ virtualenv venv-dlexport # create virtualenv
 pip3 install -r requirements.txt
 ```
 
+### Testing
+
+To run the automated tests (with virtualenv up and running):
+
+```Shell
+python3 dlexport-test.py -v
+```
+
 ### CLI
 
 Keep the virtualenv running to use this utility at the command line. Show usage with:
