@@ -47,12 +47,16 @@ def sendEmail(url, srs, dbcs):
         if v == CONN_ERR:
             body += 'The application could not connect to the database "{}".\n'.format(k)
 
+    sender = 'mmatney@library.ucla.edu'
+    receivers = ['mmatney@library.ucla.edu']
+
     msg = MIMEText(body)
     msg['Subject'] = 'Monitoring {}'.format(url)
     msg['From'] = 'donotreply'
-    msg['To'] = 'mmatney@library.ucla.edu'
+    msg['To'] = 'markamatney@gmail.com'
+    #msg['To'] = 'mmatney@library.ucla.edu'
 
-    s = smtplib.SMTP('localhost')
+    s = smtplib.SMTP(host='localhost', port=8025)
     s.send_message(msg)
     s.quit()
 
