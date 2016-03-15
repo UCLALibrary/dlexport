@@ -4,18 +4,32 @@ import requests
 import smtplib
 from email.mime.text import MIMEText
 
-CONN_OK = 0
-CONN_ERR = 1
+NAGIOS_OK = 0
+NAGIOS_WARNING = 1
+NAGIOS_CRITICAL = 2
+NAGIOS_UNKNOWN = 3
+
+SERVER_CONN_OK = 0
+SERVER_CONN_ERR = 1
+
+DB_CONN_OK = 2
+DB_CONN_ERR = 3
+
 
 def pingRemoteServer(url):
 
+    """
+    Send GET request to the url and return a 2-tuple, with the first element
+    indicating whether the request returned a success response or not, and the 
+    second containing the actual response status.
+    """
     response = requests.get(url)
     status = response.status_code
 
     if status not in [200, 304]:
-        return (CONN_ERR, status)
+        return (SERVER_CONN_ERR, status)
 
-    return (CONN_OK, status)
+    return (SERVER_CONN_OK, status)
 
 def pingDatabases():
 
@@ -29,23 +43,25 @@ def pingDatabases():
         try:
             conn = exporter.connectToDb(db)
             conn.close()
-            statuses[db] = CONN_OK
+            statuses[db] = DB_CONN_OK
 
         except cx_Oracle.DatabaseError as e:
             # TODO: check error and print specific diagnostic message
-            statuses[db] = CONN_ERR
+            statuses[db] = DB_CONN_ERR
 
     return statuses
 
 def sendEmail(url, srs, dbcs):
 
     body = 'The application at {} is experiencing issues.\n'.format(url)
-    if srs[0] == CONN_ERR:
+    if srs[0] == SERVER_CONN_ERR:
         body += 'The server responded to a GET request with status code {}.\n'.format(srs[1])
 
     for k, v in dbcs:
-        if v == CONN_ERR:
+        if v == DB_CONN_ERR:
             body += 'The application could not connect to the database "{}".\n'.format(k)
+
+    print(body)
 
     sender = 'mmatney@library.ucla.edu'
     receivers = ['mmatney@library.ucla.edu']
@@ -66,6 +82,23 @@ if __name__ == '__main__':
     appUrl = 'http://dlexport-dev.us-west-1.elasticbeanstalk.com/'
     serverResponseStatus = pingRemoteServer(appUrl)
     dbConnectionStatuses = pingDatabases()
+    nagiosRetval = NAGIOS_OK
 
-    if serverResponseStatus[0] == CONN_ERR or CONN_ERR in dbConnectionStatuses.values():
-        sendEmail(appUrl, serverResponseStatus, dbConnectionStatuses)
+    if serverResponseStatus[0] == SERVER_CONN_ERR or DB_CONN_ERR in dbConnectionStatuses.values():
+
+    	body = 'The application at {} is experiencing issues.\n'.format(url)
+        if serverResponseStatus[0] == SERVER_CONN_ERR:
+            body += 'CRITICAL: The server responded to a GET request with status code {}.\n'.format(serverResponseStatus[1])
+	    nagiosRetval = NAGIOS_CRITICAL
+    
+        for k, v in dbcs:
+            if v == DB_CONN_ERR: # and k is not production DB - else CRITICAL
+                body += 'WARNING: The application could not connect to the database "{}".\n'.format(k)
+		if (nagiosRetval < NAGIOS_WARNING):
+		    nagiosRetval = NAGIOS_WARNING
+
+    else:
+        body = 'All ok.'
+
+    print(body)
+    exit(nagiosRetval)
