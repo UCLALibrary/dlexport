@@ -39,10 +39,14 @@ Keep the virtualenv running to use this utility at the command line. Show usage 
 python3 dlexport.py -h
 ```
 
-For example, to export metadata in collection 'bbb' from the 'aaa' database, and write to 'ccc.csv':
+For example, to export metadata (including thumbnail image names and master image names) from the Aldous Huxley Collection in the production DLCS database to 'myFile.csv':
 
 ```Shell
-python3 dlexport.py -d aaa -c bbb > ccc.csv
+python3 dlexport.py -t -m -d lit106 -c huxle > myFile.csv # yes, it is actually named 'huxle'
+```
+or, in long form:
+```Shell
+python3 dlexport.py --thumbnails --masters --database lit106 --collection huxle > myFile.csv
 ```
 
 ### GUI
