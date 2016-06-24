@@ -9,13 +9,15 @@
   <body>
     <h1>Digital Library Metadata Export</h1>
     <form method="post">
+
       database:
+      <!--  generate list of databases -->
       <select name="db">
       {% for db in databases %}
         <option value="{{ db[0] }}">{{ db[0] }}</option>
       {% endfor %}
-      </select>
-      <br>
+      </select><br>
+
       collection name:
       <!--  generate list of collections -->
       <select name="appname">
@@ -24,15 +26,15 @@
         <option class="{{ db[0] }}" value="{{ collection[1] }}">{{ collection[0] }}</option>
         {% endfor %}
       {% endfor %}
-      </select>
-      <br>
+      </select><br>
+
       download file as:
-      <input type="text" name="outfile">.csv
-      <br>
-      <label><input type="checkbox" name="thumbs"> include thumbnail image file names</label>
-      <br>
-      <label><input type="checkbox" name="masters"> include master image file names</label>
-      <br>
+      <input type="text" name="outfile">
+        <span style="font-weight: bold">.csv</span><br>
+
+      <input type="checkbox" name="thumbs"><label>include thumbnail image file names</label> <br>
+      <input type="checkbox" name="masters"><label>include master image file names</label> <br>
+
       <!-- TODO: add option for char encoding -->
       <input type="submit" name="submit" value="Download">
     </form>
