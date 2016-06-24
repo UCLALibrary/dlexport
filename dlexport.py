@@ -76,7 +76,7 @@ class Dlexport:
             database['username'],
             database['password'],
             dnsTns)
-    
+
     def getDbQuery(self, db, query):
         '''
         Returns the desired query to be run on the given db.
@@ -90,7 +90,7 @@ class Dlexport:
             raise DlexportException(ERR_INVALID_QUERY)
 
         return queries[query]
-    
+
     def getDbCollections(self, db):
         '''
         Returns a list of the given db's collections.
@@ -107,7 +107,7 @@ class Dlexport:
         conn.close()
 
         return dbCollections
-    
+
     def getDatabases(self, includeCollections=False):
         '''
         Returns a list of databases.
@@ -120,7 +120,7 @@ class Dlexport:
             return [[a, self.getDbCollections(a)] for a in db_list]
         else:
             return db_list
-    
+
     def isDb(self, db):
         '''
         Checks if db exists.
@@ -140,7 +140,7 @@ class Dlexport:
         else:
             return False
 
-    def getMetadata(self, db=None, collection=None):
+    def getMetadata(self, db=None, collection=None, thumbnails=False, masters=False):
         '''
         Get the metadata and store in data member,
         '''
@@ -148,31 +148,31 @@ class Dlexport:
         if db not in self.getDatabases():
             print('Error: invalid database name!')
             raise DlexportException(ERR_INVALID_DATABASE)
-    
+
         # check for valid collection to prevent SQL injection
         if not self.isCollectionInDb(collection, db):
             print('Error: invalid collection name!')
             raise DlexportException(ERR_INVALID_COLLECTION)
-    
+
         # connect to Oracle DB and execute query
         conn = self.connectToDb(db)
         cursor = conn.cursor()
 
-        query = self.getDbQuery(db, 'metadata').format(collection) 
+        query = self.getDbQuery(db, 'metadata').format(collection)
         cursor.execute(query)
-    
+
         # go thru query results, organize metadata in dictionary keyed by item_ark
         # keep track of all 2nd-tier keys
         # count number of rows in result
         metadata = {}
         csvHeaders = ['Project Name', 'Item Title', 'Item Ark']
         nRows = 0
-    
+
         for (project_title, node_title, item_ark,
              desc_term_label, qualifier_label, text_value) in cursor:
-    
+
             nRows += 1
-    
+
             # check if we've started accounting for this item yet
             if item_ark not in metadata:
                 metadata[item_ark] = {
@@ -184,11 +184,11 @@ class Dlexport:
                 inner_dict_key = desc_term_label
             else:
                 inner_dict_key = '{0}.{1}'.format(desc_term_label, qualifier_label)
-    
+
             # check if we've encountered a new header field
             if inner_dict_key not in csvHeaders:
                 csvHeaders.append(inner_dict_key)
-    
+
             # check if inner_dict_key already maps to a value
             if inner_dict_key in metadata[item_ark]:
                 metadata[item_ark][inner_dict_key] = '{0}|~|{1}'.format(
@@ -197,14 +197,39 @@ class Dlexport:
                 )
             else:
                 metadata[item_ark][inner_dict_key] = text_value
-    
+
         cursor.close()
+
+        # check if we want thumbnails too
+        if thumbnails:
+            csvHeaders.append('thumbnailImageName')
+            cursor = conn.cursor()
+            query = self.getDbQuery(db, 'thumbnailImageName').format(collection)
+            cursor.execute(query)
+
+            for (item_ark, file_name) in cursor:
+                metadata[item_ark]['thumbnailImageName'] = file_name
+
+            cursor.close()
+
+        # check if we want masters too
+        if masters:
+            csvHeaders.append('masterImageName')
+            cursor = conn.cursor()
+            query = self.getDbQuery(db, 'masterImageName').format(collection)
+            cursor.execute(query)
+
+            for (item_ark, file_name) in cursor:
+                metadata[item_ark]['masterImageName'] = file_name
+
+            cursor.close()
+
         conn.close()
 
         if nRows == 0:
             print('Error: collection "{}" has no items!'.format(collection))
             raise DlexportException(ERR_EMPTY_COLLECTION)
-    
+
         self.csvHeaders = csvHeaders
         self.metadata = metadata
 
@@ -268,15 +293,27 @@ if __name__ == '__main__':
             action='store_true',
             required=False,
             help='suppress all standard output, except for error mesages')
-    
+        parser.add_argument(
+            '-t', '--thumbnails',
+            default=False,
+            action='store_true',
+            required=False,
+            help='include thumbnail file names in the output')
+        parser.add_argument(
+            '-m', '--masters',
+            default=False,
+            action='store_true',
+            required=False,
+            help='include master file names in the output')
+
         # TODO: add args to choose btw json, csv, and xml
         # TODO: arg to choose char encoding (UTF-8, UTF-16, etc.)
-    
+
         argsNamespace = parser.parse_args()
-    
+
         exporter = Dlexport('db-secrets.json')
-        exporter.getMetadata(argsNamespace.database, argsNamespace.collection)
-    
+        exporter.getMetadata(argsNamespace.database, argsNamespace.collection, argsNamespace.thumbnails, argsNamespace.masters)
+
         if not argsNamespace.quiet:
             # TODO: add switch on output formats (json, xml, etc.)
             print(exporter.toCsv())
