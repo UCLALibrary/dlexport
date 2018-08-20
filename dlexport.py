@@ -165,10 +165,10 @@ class Dlexport:
         # keep track of all 2nd-tier keys
         # count number of rows in result
         metadata = {}
-        csvHeaders = ['Project Name', 'Item Title', 'Item Ark']
+        csvHeaders = ['Project Name', 'Item Title', 'Item Ark', 'Item Sequence']
         nRows = 0
 
-        for (project_title, node_title, item_ark,
+        for (project_title, node_title, item_ark, item_sequence,
              desc_term_label, qualifier_label, text_value) in cursor:
 
             nRows += 1
@@ -178,7 +178,8 @@ class Dlexport:
                 metadata[item_ark] = {
                     'Project Name': project_title,
                     'Item Title': node_title,
-                    'Item Ark': item_ark
+                    'Item Ark': item_ark,
+                    'Item Sequence': '' if item_sequence is None else str(item_sequence)
                 }
             if qualifier_label is None:
                 inner_dict_key = desc_term_label
