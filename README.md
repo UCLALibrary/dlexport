@@ -2,7 +2,11 @@
 
 This utility requires a secret file for both local and remote hosting. Email mmatney@library.ucla.edu to request the file, and move it to the root directory of this project.
 
+Then, edit line 314 of `dlexport.py` and line 5 of `application.py` with the path to the secrets file, relative to the working directory.
+
 # Local Hosting
+
+## Setup
 
 ### System
 
@@ -23,17 +27,17 @@ virtualenv venv-dlexport # create virtualenv
 pip3 install -r requirements.txt
 ```
 
-### Testing
+### Authentication
 
-To run the automated tests (with virtualenv up and running):
+So the application can access the database, open a SSH tunnel from your local machine according to step 1 in the Jdeveloper section of https://docs.library.ucla.edu/display/dlp/SSH+tunneling+to+access+DLCS+database+at+ITS, using port `9001` instead of `9000`.
 
-```Shell
-python3 dlexport-test.py -v
-```
+## Run
 
 ### CLI
 
-Keep the virtualenv running to use this utility at the command line. Show usage with:
+Keep the virtualenv running to use this utility at the command line.
+
+Show usage with:
 
 ```Shell
 python3 dlexport.py -h
@@ -42,9 +46,11 @@ python3 dlexport.py -h
 For example, to export metadata (including thumbnail image names and master image names) from the Aldous Huxley Collection in the production DLCS database to 'myFile.csv':
 
 ```Shell
-python3 dlexport.py -t -m -d lit106 -c huxle > myFile.csv # yes, it is actually named 'huxle'
+python3 dlexport.py -t -m -d lit106 -c huxle > myFile.csv
 ```
+
 or, in long form:
+
 ```Shell
 python3 dlexport.py --thumbnails --masters --database lit106 --collection huxle > myFile.csv
 ```
@@ -69,6 +75,14 @@ To destroy it forever:
 
 ```Shell
 rm -rf venv-dlexport
+```
+
+## Test
+
+To run the automated tests (with virtualenv up and running):
+
+```Shell
+python3 dlexport-test.py -v
 ```
 
 # Remote Hosting - AWS Elastic Beanstalk
