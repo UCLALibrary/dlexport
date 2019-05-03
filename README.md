@@ -16,7 +16,7 @@ Then, edit line 314 of `dlexport.py` and line 5 of `application.py` with the pat
 
 3. **Run the container**
 
-		docker run -d --name dlx -p 80:80 -p 9001:9001 dlexport
+		docker run -d --name dlx -p 80:80 dlexport
 
 ### Docker shutdown
 
