@@ -6,7 +6,30 @@ Then, edit line 314 of `dlexport.py` and line 5 of `application.py` with the pat
 
 # Local Hosting
 
-## Setup
+## Docker Setup
+
+1. **Set up the ssh tunnel** (as specified below in https://docs.library.ucla.edu/display/dlp/SSH+tunneling+to+access+DLCS+database+at+ITS)
+
+2. **Build/Rebuild the Docker container**
+
+		docker build -t dlexport .
+
+3. **Run the container**
+
+		docker run -d --name dlx -p 80:80 -p 9001:9001 dlexport
+
+### Docker shutdown
+
+1. Stop the container
+
+		docker stop dlx
+
+2. Remove the container
+
+		docker rm dlx
+
+
+## Manual Setup
 
 ### System
 

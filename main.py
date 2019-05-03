@@ -1,8 +1,11 @@
-import dlexport
 from flask import Flask, make_response, render_template, request
 
-application = Flask(__name__)
+import dlexport
+
+
+app = Flask(__name__)
 exporter = dlexport.Dlexport('db-secrets.json')
+
 
 def renderTemplate(errorCode=None):
 
@@ -23,7 +26,7 @@ def renderTemplate(errorCode=None):
     return render_template('error.html', message=m)
 
 
-@application.route('/', methods=['GET', 'POST'])
+@app.route('/', methods=['GET', 'POST'])
 def index():
 
     if request.method == 'POST':
@@ -57,5 +60,6 @@ def index():
             message='Error: "{}" requests not supported, use "GET" or "POST"'.format(
                 request.method))
 
+
 if __name__ == '__main__':
-    application.run()
+    app.run()
