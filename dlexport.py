@@ -26,6 +26,78 @@ ERR_UNKNOWN = 5
 ERR_INVALID_QUERY = 6
 # TODO: change codes to strings
 
+METADATA_QUERY = """
+SELECT c.project_title, b.node_title, b.item_ark, b.item_sequence, a.desc_term_label, a.qualifier_label, a.text_value 
+FROM 
+    (SELECT 
+        dv.divid_fk AS item_id, 
+        dv.projectid_fk AS project_id, 
+        cdt.desc_term AS core_desc_term, 
+        cdt.core_desc_termid_pk AS core_desc_termid_id, 
+        dt.term_label AS desc_term_label, 
+        dt.desc_termid_pk AS desc_termid_id, 
+        v_qual.qual_text AS qualifier_label, 
+        CASE 
+            WHEN dv.desc_cvid_fk IS NOT NULL 
+                THEN ctrl_values.ctrl_val_text 
+                ELSE dv.desc_value 
+        END AS text_value, 
+        dv.desc_cvid_fk AS desc_control_values_id, 
+        dv.desc_qualifierid_fk AS desc_qualifiers_id, 
+        v_qual.qid AS core_desc_qualifiers_id, 
+        ctrl_values.core_desc_cvid_pk AS core_desc_control_values_id 
+    FROM desc_values dv, desc_terms dt, core_desc_terms cdt, 
+        (SELECT DISTINCT 
+            dq.core_desc_qualifierid_fk AS qid, 
+            cdq.desc_qualifier AS qual_text, 
+            dq.desc_qualifierid_pk AS desc_qual_pk 
+        FROM desc_qualifiers dq, core_desc_qualifiers cdq 
+        WHERE dq.CORE_DESC_QUALIFIERID_FK = cdq.core_desc_qualifierid_pk ) v_qual, 
+        (SELECT DISTINCT 
+            cdcv.core_desc_cv AS ctrl_val_text, 
+            dcv.desc_cvid_pk, 
+            cdcv.core_desc_cvid_pk 
+        FROM core_desc_control_values cdcv, desc_control_values dcv 
+        WHERE cdcv.core_desc_cvid_pk = dcv.core_desc_cvid_fk ) ctrl_values 
+    WHERE dv.desc_termid_fk = dt.desc_termid_pk 
+    AND dt.core_desc_termid_fk = cdt.CORE_DESC_TERMID_PK 
+    AND dv.desc_qualifierid_fk = v_qual.desc_qual_pk(+) 
+    AND dv.desc_cvid_fk = ctrl_values.desc_cvid_pk(+) ) a 
+INNER JOIN project_items b ON a.item_id = b.divid_pk 
+INNER JOIN projects c ON b.projectid_fk = c.projectid_pk 
+WHERE project_id IN 
+    (SELECT projectid_pk FROM projects WHERE webapp_name = :collection)
+"""
+
+
+COLLECTIONS_QUERY = """
+SELECT project_title, webapp_name 
+FROM projects 
+ORDER BY project_title
+"""
+
+
+THUMBNAIL_QUERY = """
+SELECT pi.item_ark, cf.file_name 
+FROM projects p 
+    INNER JOIN project_items pi ON p.projectid_pk = pi.projectid_fk 
+    INNER JOIN content_files cf ON pi.divid_pk = cf.divid_fk 
+WHERE cf.file_use = 'Thumbnail' 
+AND p.webapp_name = :collection 
+ORDER BY pi.item_ark
+"""
+   
+
+MASTER_IMG_QUERY = """
+SELECT pi.item_ark, cf.file_name 
+FROM projects p 
+INNER JOIN project_items pi ON p.projectid_pk = pi.projectid_fk 
+INNER JOIN content_files cf ON pi.divid_pk = cf.divid_fk 
+WHERE cf.file_use = 'Master' 
+AND p.webapp_name = :collection 
+ORDER BY pi.item_ark
+"""
+
 
 def clean(dirty):
     '''
@@ -77,20 +149,6 @@ class Dlexport:
             database['password'],
             dnsTns)
 
-    def getDbQuery(self, db, query):
-        '''
-        Returns the desired query to be run on the given db.
-        '''
-        dbs = self._secrets
-        if db not in list(dbs.keys()):
-            raise DlexportException(ERR_INVALID_DATABASE)
-
-        queries = dbs[db]['queries']
-        if query not in list(queries):
-            raise DlexportException(ERR_INVALID_QUERY)
-
-        return queries[query]
-
     def getDbCollections(self, db):
         '''
         Returns a list of the given db's collections.
@@ -98,14 +156,10 @@ class Dlexport:
         '''
         conn = self.connectToDb(db)
         cursor = conn.cursor()
-
-        query = self.getDbQuery(db, 'collections')
-        cursor.execute(query)
+        cursor.execute(COLLECTIONS_QUERY)
         dbCollections = [[a, b] for a, b in cursor]
-
         cursor.close()
         conn.close()
-
         return dbCollections
 
     def getDatabases(self, includeCollections=False):
@@ -157,9 +211,8 @@ class Dlexport:
         # connect to Oracle DB and execute query
         conn = self.connectToDb(db)
         cursor = conn.cursor()
-
-        query = self.getDbQuery(db, 'metadata').format(collection)
-        cursor.execute(query)
+        cursor.prepare(METADATA_QUERY)
+        cursor.execute(None, collection=collection)
 
         # go thru query results, organize metadata in dictionary keyed by item_ark
         # keep track of all 2nd-tier keys
@@ -205,8 +258,8 @@ class Dlexport:
         if thumbnails:
             csvHeaders.append('thumbnailImageName')
             cursor = conn.cursor()
-            query = self.getDbQuery(db, 'thumbnailImageName').format(collection)
-            cursor.execute(query)
+            cursor.prepare(THUMBNAIL_QUERY)
+            cursor.execute(None, collection=collection)
 
             for (item_ark, file_name) in cursor:
                 metadata[item_ark]['thumbnailImageName'] = file_name
@@ -217,8 +270,8 @@ class Dlexport:
         if masters:
             csvHeaders.append('masterImageName')
             cursor = conn.cursor()
-            query = self.getDbQuery(db, 'masterImageName').format(collection)
-            cursor.execute(query)
+            cursor.prepare(MASTER_IMG_QUERY)
+            cursor.execute(None, collection=collection)
 
             for (item_ark, file_name) in cursor:
                 metadata[item_ark]['masterImageName'] = file_name
