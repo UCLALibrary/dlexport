@@ -6,30 +6,40 @@ Then, edit line 314 of `dlexport.py` and line 5 of `application.py` with the pat
 
 # Local Hosting
 
-## Docker Setup
+## Setup Method 1: Using the Docker container
 
-1. **Set up the ssh tunnel** (as specified below in https://docs.library.ucla.edu/display/dlp/SSH+tunneling+to+access+DLCS+database+at+ITS)
+1. **Install Docker and make sure it is running**
 
-2. **Build/Rebuild the Docker container**
+2. **Clone this repo and move to it in your terminal**
 
-		docker build -t dlexport .
+		cd path/to/dlexport
 
-3. **Run the container**
+3. **Start the ssh tunnel**
 
-		docker run -d --name dlx -p 80:80 dlexport
+		ssh -L 9001:lit106.library.ucla.edu:1521 <your jump server username>@jump.library.ucla.edu -p 31926
 
-### Docker shutdown
+4. **Build/Run the Docker container**
 
-1. Stop the container
+		docker-compose up -d
 
-		docker stop dlx
+4. **You can now see the app in your browser**
 
-2. Remove the container
+	http://127.0.0.1
 
-		docker rm dlx
+5. **Make your changes to the application files locally**
+
+	You will be able to see your changes with a simple browser refresh
+
+6. **Shut down the container when you are done**
+
+		docker-compose down
+
+7. **Turn off Docker**
+
+	It can make your machine sluggish
 
 
-## Manual Setup
+## Setup Method 2: Native
 
 ### System
 
