@@ -63,9 +63,9 @@
       </div>
 
     <div class="form-group">
-        <label for="exampleFormControlSelect1">Search collection name:</label>
+        <label for="exampleFormControlSelect1">Select a collection:</label>
         <select class="form-control" name="appname" id="exampleFormControlSelect1">
-        <option selected>Select a collection:</option>
+        <option selected>Select a collection</option>
           {% for db in databases %}
           {% for collection in db[1] %}
           <option class="{{ db[0] }}" value="{{ collection[1] }}">{{ collection[0] }}</option>
