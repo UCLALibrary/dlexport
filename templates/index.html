@@ -38,6 +38,8 @@
     
 <main role="main">
 
+
+
 <div class="jumbotron">
     <div class="container">
       <h1 class="display-3">DLCS Metadata Export Tool</h1>
@@ -49,36 +51,58 @@
     <div class="container">
       <div class="row">
       <div class="col-md-4">
-        <h2>Database:</h2>
-        <p>
-      <!--  generate list of databases -->
-        <select name="db">
-        {% for db in databases %}
-        <option value="{{ db[0] }}">{{ db[0] }}</option>
-        {% endfor %}
-        </select><br></p> 
 
-        <h2>Select collection name:</h2>
-        <p>
-      <!--  generate list of collections -->
-        <select name="appname">
-        {% for db in databases %}
-        {% for collection in db[1] %}
-        <option class="{{ db[0] }}" value="{{ collection[1] }}">{{ collection[0] }}</option>
-        {% endfor %}
-        {% endfor %}
-        </select><br></p>
+      <div class="form-group">
+        <label for="exampleFormControlSelect1">Database</label>
+        <select name="db" class="form-control" id="exampleFormControlSelect1">
+        <option selected>Select a database</option>
+          {% for db in databases %}
+          <option value="{{ db[0] }}">{{ db[0] }}</option>
+          {% endfor %}
+        </select>
+      </div>
 
-        <h2>Download file as:</h2>
-        <p>
-          <input type="text" name="outfile">
-          <span style="font-weight: bold">.csv</span><br>
+    <div class="form-group">
+        <label for="exampleFormControlSelect1">Search collection name:</label>
+        <select class="form-control" name="appname" id="exampleFormControlSelect1">
+        <option selected>Select a collection</option>
+          {% for db in databases %}
+          {% for collection in db[1] %}
+          <option class="{{ db[0] }}" value="{{ collection[1] }}">{{ collection[0] }}</option>
+          {% endfor %}
+          {% endfor %}
+        </select>
+      </div>
 
-          <input type="checkbox" name="thumbs"><label>Include thumbnail image file names</label> <br>
-          <input type="checkbox" name="masters"><label>Include master image file names</label> <br>
+
+
+
+
+
+      <div class="input-group mb-3">
+        <input type="text" name='outfile' class="form-control" placeholder="Name your file" aria-label="Recipient's username" aria-describedby="basic-addon2">
+        <div class="input-group-append">
+          <span class="input-group-text" id="basic-addon2">.csv</span>
+        </div>
+      </div>
+
+          <div class="custom-control custom-checkbox">
+            <input type="checkbox" name="thumbs" class="custom-control-input" id="customCheck1">
+            <label class="custom-control-label" for="customCheck1">Include thumbnail image file names</label>
+          </div>
+
+          <div class="custom-control custom-checkbox">
+            <input type="checkbox" name="masters" class="custom-control-input" id="customCheck2">
+            <label class="custom-control-label" for="customCheck2">Include master image file names</label>
+          </div>
 
       <!-- TODO: add option for char encoding -->
-          <input type="submit" name="submit" value="Download">
+
+          <div class="btn-group" role="group" aria-label="Third group">
+            <button type="submit" name="submit" value="Download" class="btn btn-secondary">Download</button>
+          </div>
+
+
           </form></p>
 
       </div>
