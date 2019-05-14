@@ -27,7 +27,18 @@ ERR_INVALID_QUERY = 6
 # TODO: change codes to strings
 
 METADATA_QUERY = """
-SELECT c.project_title, b.node_title, b.item_ark, b.item_sequence, a.desc_term_label, a.qualifier_label, a.text_value 
+SELECT 
+    c.project_title, 
+    b.item_ark, 
+    b.item_sequence,
+    a.desc_term_label, 
+    a.core_desc_term, 
+    a.qualifier_label, 
+    a.text_value, 
+    parent_join.item_ark AS parent_ark, 
+    v_ot.object_type, 
+    cf.file_name
+--a.desc_term_label, a.qualifier_label, parent_join.item_ark as parent_ark, b.item_ark, v_ot.object_type, a.text_value as tv 
 FROM 
     (SELECT 
         dv.divid_fk AS item_id, 
@@ -36,11 +47,11 @@ FROM
         cdt.core_desc_termid_pk AS core_desc_termid_id, 
         dt.term_label AS desc_term_label, 
         dt.desc_termid_pk AS desc_termid_id, 
-        v_qual.qual_text AS qualifier_label, 
+        v_qual.qual_text AS qualifier_label,
         CASE 
             WHEN dv.desc_cvid_fk IS NOT NULL 
-                THEN ctrl_values.ctrl_val_text 
-                ELSE dv.desc_value 
+            THEN ctrl_values.ctrl_val_text 
+            ELSE dv.desc_value 
         END AS text_value, 
         dv.desc_cvid_fk AS desc_control_values_id, 
         dv.desc_qualifierid_fk AS desc_qualifiers_id, 
@@ -52,7 +63,7 @@ FROM
             cdq.desc_qualifier AS qual_text, 
             dq.desc_qualifierid_pk AS desc_qual_pk 
         FROM desc_qualifiers dq, core_desc_qualifiers cdq 
-        WHERE dq.CORE_DESC_QUALIFIERID_FK = cdq.core_desc_qualifierid_pk ) v_qual, 
+        WHERE dq.CORE_DESC_QUALIFIERID_FK = cdq.core_desc_qualifierid_pk ) v_qual,
         (SELECT DISTINCT 
             cdcv.core_desc_cv AS ctrl_val_text, 
             dcv.desc_cvid_pk, 
@@ -62,11 +73,33 @@ FROM
     WHERE dv.desc_termid_fk = dt.desc_termid_pk 
     AND dt.core_desc_termid_fk = cdt.CORE_DESC_TERMID_PK 
     AND dv.desc_qualifierid_fk = v_qual.desc_qual_pk(+) 
-    AND dv.desc_cvid_fk = ctrl_values.desc_cvid_pk(+) ) a 
-INNER JOIN project_items b ON a.item_id = b.divid_pk 
-INNER JOIN projects c ON b.projectid_fk = c.projectid_pk 
+    AND dv.desc_cvid_fk = ctrl_values.desc_cvid_pk(+)
+    ) a 
+
+INNER JOIN project_items b 
+ON a.item_id = b.divid_pk 
+
+INNER JOIN projects c 
+ON b.projectid_fk = c.projectid_pk 
+
+INNER JOIN 
+    (SELECT objectid_pk, object_label, object_type
+    FROM dl_objects, dl_object_types
+    WHERE object_typeid_fk = object_typeid_pk
+    ) v_ot
+ON v_ot.objectid_pk = b.objectid_fk 
+
+LEFT OUTER JOIN content_files cf
+ON b.divid_pk = cf.divid_fk 
+AND cf.file_use = 'Master'
+
+LEFT OUTER JOIN project_items parent_join
+ON b.parent_divid = parent_join.divid_pk
+
 WHERE project_id IN 
-    (SELECT projectid_pk FROM projects WHERE webapp_name = :collection)
+    (SELECT projectid_pk 
+    FROM projects 
+    WHERE webapp_name = :collection )
 """
 
 
@@ -218,11 +251,11 @@ class Dlexport:
         # keep track of all 2nd-tier keys
         # count number of rows in result
         metadata = {}
-        csvHeaders = ['Project Name', 'Item Title', 'Item Ark', 'Item Sequence']
+        csvHeaders = ['Project Name','Item Ark', 'Parent Ark', 'Object Type', 'File Name', 'Item Sequence']
         nRows = 0
 
-        for (project_title, node_title, item_ark, item_sequence,
-             desc_term_label, qualifier_label, text_value) in cursor:
+        for (project_title, item_ark, item_sequence, desc_term_label, core_desc_term, 
+            qualifier_label, text_value, parent_ark, object_type, file_name) in cursor:
 
             nRows += 1
 
@@ -230,11 +263,14 @@ class Dlexport:
             if item_ark not in metadata:
                 metadata[item_ark] = {
                     'Project Name': project_title,
-                    'Item Title': node_title,
                     'Item Ark': item_ark,
+                    'Parent Ark': parent_ark,
+                    'Object Type': object_type,
+                    'File Name': file_name,
                     'Item Sequence': '' if item_sequence is None else str(item_sequence)
                 }
-            if qualifier_label is None:
+
+            if qualifier_label in (False, None) or len(qualifier_label) <= 0:
                 inner_dict_key = desc_term_label
             else:
                 inner_dict_key = '{0}.{1}'.format(desc_term_label, qualifier_label)
