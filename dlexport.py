@@ -37,6 +37,7 @@ SELECT
     a.text_value, 
     parent_join.item_ark AS parent_ark, 
     v_ot.object_type, 
+    p_ot.object_type AS parent_obj_type, 
     cf.file_name
 --a.desc_term_label, a.qualifier_label, parent_join.item_ark as parent_ark, b.item_ark, v_ot.object_type, a.text_value as tv 
 FROM 
@@ -95,6 +96,13 @@ AND cf.file_use = 'Master'
 
 LEFT OUTER JOIN project_items parent_join
 ON b.parent_divid = parent_join.divid_pk
+
+INNER JOIN 
+    (SELECT objectid_pk, object_label, object_type
+    FROM dl_objects, dl_object_types
+    WHERE object_typeid_fk = object_typeid_pk
+    ) p_ot
+ON p_ot.objectid_pk = parent_join.objectid_fk
 
 WHERE project_id IN 
     (SELECT projectid_pk 
@@ -251,11 +259,12 @@ class Dlexport:
         # keep track of all 2nd-tier keys
         # count number of rows in result
         metadata = {}
-        csvHeaders = ['Project Name','Item Ark', 'Parent Ark', 'Object Type', 'File Name', 'Item Sequence']
+        csvHeaders = ['Project Name','Item Ark', 'Parent Ark', 'Object Type', 'Parent Object Type', 'File Name', 'Item Sequence']
         nRows = 0
 
-        for (project_title, item_ark, item_sequence, desc_term_label, core_desc_term, 
-            qualifier_label, text_value, parent_ark, object_type, file_name) in cursor:
+        for (project_title, item_ark, item_sequence, desc_term_label, 
+            core_desc_term, qualifier_label, text_value, parent_ark, 
+            object_type, parent_obj_type, file_name) in cursor:
 
             nRows += 1
 
@@ -266,6 +275,7 @@ class Dlexport:
                     'Item Ark': item_ark,
                     'Parent Ark': parent_ark,
                     'Object Type': object_type,
+                    'Parent Object Type': parent_obj_type,
                     'File Name': file_name,
                     'Item Sequence': '' if item_sequence is None else str(item_sequence)
                 }
