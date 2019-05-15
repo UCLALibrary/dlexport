@@ -9,110 +9,111 @@
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
 
     <!-- Custom styles for this template -->
-    <link href="jumbotron.css" rel="stylesheet">
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+    <style>
+      /* Move down content because we have a fixed navbar that is 3.5rem tall */
+      body {
+        padding-top: 3.5rem;
+      }
+    </style>
   </head>
 
   <body>
-    <form method="post">
-    
      
- <nav class="navbar navbar-expand-md navbar-dark fixed-top bg-dark">
-  <a class="navbar-brand" href="#">DLCS Metadata Export Tool</a>
-  <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarsExampleDefault" aria-controls="navbarsExampleDefault" aria-expanded="false" aria-label="Toggle navigation">
-    <span class="navbar-toggler-icon"></span>
-  </button>
-
-  <div class="collapse navbar-collapse" id="navbarsExampleDefault">
-    <ul class="navbar-nav mr-auto">
-      <li class="nav-item active">
-        <a class="nav-link" href="http://digital2.library.ucla.edu/" target="_blank">UCLA Digital Library <span class="sr-only">(current)</span></a>
-      </li>
-        </div>
-      </li>
-    </ul>
-   
-  </div>
-</nav>
-
-    
-<main role="main">
-
-
-
-<div class="jumbotron">
-    <div class="container">
-      <h1 class="display-3">DLCS Metadata Export Tool</h1>
-      <p>This is a tool to download UCLA's digital library metadata.</p>
-    
-    </div>
-  </div>
-
-    <div class="container">
-      <div class="row">
-      <div class="col-md-4">
-
-      <div class="form-group">
-        <label for="exampleFormControlSelect1">Database:</label>
-        <select name="db" class="form-control" id="exampleFormControlSelect1">
-        <option selected>Select a database</option>
-          {% for db in databases %}
-          <option value="{{ db[0] }}">{{ db[0] }}</option>
-          {% endfor %}
-        </select>
+    <nav class="navbar navbar-expand-md navbar-dark fixed-top bg-dark">
+      <a class="navbar-brand" href="#">DLCS Metadata Export Tool</a>
+      <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarsExampleDefault" aria-controls="navbarsExampleDefault" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarsExampleDefault">
+        <ul class="navbar-nav mr-auto">
+          <li class="nav-item active">
+            <a class="nav-link" href="http://digital2.library.ucla.edu/" target="_blank">UCLA Digital Library <span class="sr-only">(current)</span></a>
+          </li>
+            </div>
+          </li>
+        </ul> 
       </div>
+    </nav>
 
-    <div class="form-group">
-        <label for="exampleFormControlSelect1">Select a collection:</label>
-        <select class="form-control" name="appname" id="exampleFormControlSelect1">
-        <option selected>Select a collection</option>
-          {% for db in databases %}
-          {% for collection in db[1] %}
-          <option class="{{ db[0] }}" value="{{ collection[1] }}">{{ collection[0] }}</option>
-          {% endfor %}
-          {% endfor %}
-        </select>
-      </div>
+    <main role="main">
 
-
-
-
-
-
-      <div class="input-group mb-3">
-        <input type="text" name='outfile' class="form-control" placeholder="Name your file" aria-label="Recipient's username" aria-describedby="basic-addon2">
-        <div class="input-group-append">
-          <span class="input-group-text" id="basic-addon2">.csv</span>
+      <div class="jumbotron">
+        <div class="container">
+          <h1 class="display-3">DLCS Metadata Export Tool</h1>
+          <p>This is a tool to download UCLA's digital library metadata.</p>
         </div>
       </div>
 
-          <div class="custom-control custom-checkbox">
-            <input type="checkbox" name="thumbs" class="custom-control-input" id="customCheck1">
-            <label class="custom-control-label" for="customCheck1">Include thumbnail image file names</label>
-          </div>
+      <div class="container">
+        <div class="row">
+          <div class="col-md-4">
 
-          <div class="custom-control custom-checkbox">
-            <input type="checkbox" name="masters" class="custom-control-input" id="customCheck2">
-            <label class="custom-control-label" for="customCheck2">Include master image file names</label>
-          </div>
+            <form method="post">
 
-      <!-- TODO: add option for char encoding -->
+              <!-- 
+              *****
+              HIDING DATABASE SELECTION UNTIL WE HAVE MORE THAN ONE TO CHOOSE FROM
+              *****
+              <div class="form-group">
+                <label for="exampleFormControlSelect1">Database:</label>
+                <select name="db" class="form-control" id="exampleFormControlSelect1">
+                  <option selected>Select a database</option>
+                  {% for db in databases %}
+                  <option value="{{ db[0] }}">{{ db[0] }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              -->
+              <input type="hidden" name="db" value="{{ databases[0][0] }}">
 
-          <div class="btn-group" role="group" aria-label="Third group">
-            <button type="submit" name="submit" value="Download" class="btn btn-secondary">Download</button>
-          </div>
+              <div class="form-group">
+                <label for="exampleFormControlSelect1">Select a collection:</label>
+                <select class="custom-select" name="appname" id="exampleFormControlSelect1">
+                  <option selected>Select a collection</option>
+                  {% for db in databases %}
+                    {% for collection in db[1] %}
+                  <option class="{{ db[0] }}" value="{{ collection[1] }}">{{ collection[0] }}</option>
+                    {% endfor %}
+                  {% endfor %}
+                </select>
+              </div>
 
+              <div class="input-group mb-3">
+                <input type="text" name='outfile' class="form-control" placeholder="Name your file" aria-label="Recipient's username" aria-describedby="basic-addon2">
+                <div class="input-group-append">
+                  <span class="input-group-text" id="basic-addon2">.csv</span>
+                </div>
+              </div>
 
-          </form></p>
+              <div class="custom-control custom-checkbox">
+                <input type="checkbox" name="thumbs" class="custom-control-input" id="customCheck1" checked>
+                <label class="custom-control-label" for="customCheck1">Include thumbnail image file names</label>
+              </div>
 
-      </div>
-    </div>
+              <div class="custom-control custom-checkbox">
+                <input type="checkbox" name="masters" class="custom-control-input" id="customCheck2" checked>
+                <label class="custom-control-label" for="customCheck2">Include master image file names</label>
+              </div>
 
-  </div> <!-- /container -->
+              <br/>
 
-  <footer class="container">
-  <p>&copy; 2019 UC Regents</p>
-</footer>
+              <div class="btn-group" role="group" aria-label="Third group">
+                <button type="submit" name="submit" value="Download" class="btn-lg btn-primary">Download</button>
+              </div>
+            </form>
+
+          </div> <!-- column -->
+        </div> <!-- row -->
+
+        <hr/>
+
+      </div> <!-- /container -->
+
+    </main>
+
+    <footer class="container">
+      <p>&copy; 2019 UC Regents</p>
+    </footer>
             
     <script>
         $(document).ready(function() {
@@ -143,7 +144,8 @@
         });
     </script>  
     <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
-<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
+
   </body>
 </html>
