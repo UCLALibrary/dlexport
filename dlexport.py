@@ -37,7 +37,11 @@ SELECT
     a.text_value, 
     parent_join.item_ark AS parent_ark, 
     v_ot.object_type, 
-    p_ot.object_type AS parent_obj_type, 
+    CASE
+        WHEN p_ot.object_type IS NOT NULL
+        THEN p_ot.object_type
+        ELSE ''
+    END AS parent_obj_type, 
     cf.file_name
 --a.desc_term_label, a.qualifier_label, parent_join.item_ark as parent_ark, b.item_ark, v_ot.object_type, a.text_value as tv 
 FROM 
@@ -97,7 +101,7 @@ AND cf.file_use = 'Master'
 LEFT OUTER JOIN project_items parent_join
 ON b.parent_divid = parent_join.divid_pk
 
-INNER JOIN 
+LEFT OUTER JOIN 
     (SELECT objectid_pk, object_label, object_type
     FROM dl_objects, dl_object_types
     WHERE object_typeid_fk = object_typeid_pk
@@ -267,6 +271,12 @@ class Dlexport:
             object_type, parent_obj_type, file_name) in cursor:
 
             nRows += 1
+
+            if object_type != 'Collection':
+                if parent_obj_type == 'Collection':
+                    object_type = 'Work'
+                else:
+                    object_type = 'ChildWork'
 
             # check if we've started accounting for this item yet
             if item_ark not in metadata:
