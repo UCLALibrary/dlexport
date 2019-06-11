@@ -42,7 +42,7 @@ SELECT
         THEN p_ot.object_type
         ELSE ''
     END AS parent_obj_type, 
-    cf.file_name
+    cf.file_name, cf.file_location
 --a.desc_term_label, a.qualifier_label, parent_join.item_ark as parent_ark, b.item_ark, v_ot.object_type, a.text_value as tv 
 FROM 
     (SELECT 
@@ -123,7 +123,7 @@ ORDER BY project_title
 
 
 THUMBNAIL_QUERY = """
-SELECT pi.item_ark, cf.file_name 
+SELECT pi.item_ark, cf.file_name, cf.file_location 
 FROM projects p 
     INNER JOIN project_items pi ON p.projectid_pk = pi.projectid_fk 
     INNER JOIN content_files cf ON pi.divid_pk = cf.divid_fk 
@@ -134,7 +134,7 @@ ORDER BY pi.item_ark
    
 
 MASTER_IMG_QUERY = """
-SELECT pi.item_ark, cf.file_name 
+SELECT pi.item_ark, cf.file_name, cf.file_location 
 FROM projects p 
 INNER JOIN project_items pi ON p.projectid_pk = pi.projectid_fk 
 INNER JOIN content_files cf ON pi.divid_pk = cf.divid_fk 
@@ -268,7 +268,7 @@ class Dlexport:
 
         for (project_title, item_ark, item_sequence, desc_term_label, 
             core_desc_term, qualifier_label, text_value, parent_ark, 
-            object_type, parent_obj_type, file_name) in cursor:
+            object_type, parent_obj_type, file_name, file_location) in cursor:
 
             nRows += 1
 
@@ -280,12 +280,17 @@ class Dlexport:
 
             # check if we've started accounting for this item yet
             if item_ark not in metadata:
+                file_location_str = ''
+                if file_location:
+                    indexOfdigi = len("http://digilib.library.ucla.edu/")
+                    file_location_str = file_location[indexOfdigi:]
+
                 metadata[item_ark] = {
                     'Project Name': project_title,
                     'Item ARK': item_ark,
                     'Parent ARK': parent_ark,
                     'Object Type': object_type,
-                    'File Name': file_name,
+                    'File Name': file_location_str,
                     'Item Sequence': '' if item_sequence is None else str(item_sequence)
                 }
 
@@ -316,7 +321,7 @@ class Dlexport:
             cursor.prepare(THUMBNAIL_QUERY)
             cursor.execute(None, collection=collection)
 
-            for (item_ark, file_name) in cursor:
+            for (item_ark, file_name, file_location) in cursor:
                 metadata[item_ark]['thumbnailImageName'] = file_name
 
             cursor.close()
@@ -328,7 +333,7 @@ class Dlexport:
             cursor.prepare(MASTER_IMG_QUERY)
             cursor.execute(None, collection=collection)
 
-            for (item_ark, file_name) in cursor:
+            for (item_ark, file_name, file_location) in cursor:
                 metadata[item_ark]['masterImageName'] = file_name
 
             cursor.close()

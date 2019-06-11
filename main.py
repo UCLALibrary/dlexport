@@ -1,6 +1,3 @@
-import uwsgi
-uwsgi.reload()
-
 from flask import Flask, make_response, render_template, request
 
 import dlexport
