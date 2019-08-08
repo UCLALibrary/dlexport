@@ -321,6 +321,8 @@ class Dlexport:
                         metadata[item_ark]['Duplicate'] = 'YES'
                     elif 'duplicate' in text_value:
                         metadata[item_ark]['Duplicate'] = 'YES'
+                    elif 'Duplicate' in text_value:
+                        metadata[item_ark]['Duplicate'] = 'YES'
 
                 
             else:
