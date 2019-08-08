@@ -313,11 +313,6 @@ class Dlexport:
                 metadata[item_ark][inner_dict_key] = text_value
 
             #check if the title contains the word 'DUPLICATE'
-            if metadata[item_ark][inner_dict_key] == 'Title':
-                csvHeaders.append('Duplicate')
-            else:
-                pass
-
             if metadata[item_ark][inner_dict_key] == text_value:
                 if 'DUPLICATE' in str(text_value):
                     metadata[item_ark]['Duplicate'] = 'Yes'
