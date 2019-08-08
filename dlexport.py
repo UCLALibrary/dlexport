@@ -263,7 +263,7 @@ class Dlexport:
         # keep track of all 2nd-tier keys
         # count number of rows in result
         metadata = {}
-        csvHeaders = ['Project Name','Item ARK', 'Parent ARK', 'Object Type', 'File Name', 'Item Sequence']
+        csvHeaders = ['Project Name','Item ARK', 'Parent ARK', 'Object Type', 'File Name', 'Item Sequence', 'Duplicate']
         nRows = 0
 
         for (project_title, item_ark, item_sequence, desc_term_label, 
@@ -291,7 +291,7 @@ class Dlexport:
                     'Parent ARK': parent_ark,
                     'Object Type': object_type,
                     'File Name': file_location_str,
-                    'Item Sequence': '' if item_sequence is None else str(item_sequence)
+                    'Item Sequence': '' if item_sequence is None else str(item_sequence)                    
                 }
 
             if qualifier_label in (False, None) or len(qualifier_label) <= 0:
@@ -311,6 +311,18 @@ class Dlexport:
                 )
             else:
                 metadata[item_ark][inner_dict_key] = text_value
+
+            #check if the title contains the word 'DUPLICATE'
+            if metadata[item_ark][inner_dict_key] == 'Title':
+                csvHeaders.append('Duplicate')
+            else:
+                pass
+
+            if metadata[item_ark][inner_dict_key] == text_value:
+                if 'DUPLICATE' in str(text_value):
+                    metadata[item_ark]['Duplicate'] = 'Yes'
+            else:
+                pass
 
         cursor.close()
 
