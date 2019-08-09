@@ -315,16 +315,13 @@ class Dlexport:
             #check if the title contains the word 'DUPLICATE'
 
             if desc_term_label == "Title":
-                
                 if  metadata[item_ark][inner_dict_key]== text_value:
                     if 'DUPLICATE' in text_value:
-                        metadata[item_ark]['Duplicate'] = 'YES'
+                        metadata[item_ark]['Duplicate'] = 'Yes'
                     elif 'duplicate' in text_value:
-                        metadata[item_ark]['Duplicate'] = 'YES'
+                        metadata[item_ark]['Duplicate'] = 'Yes'
                     elif 'Duplicate' in text_value:
-                        metadata[item_ark]['Duplicate'] = 'YES'
-
-                
+                        metadata[item_ark]['Duplicate'] = 'Yes'
             else:
                 pass
 
