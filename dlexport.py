@@ -312,7 +312,7 @@ class Dlexport:
             else:
                 metadata[item_ark][inner_dict_key] = text_value
 
-            #check if the title contains the word 'DUPLICATE'
+            #check if the title field contains a variant of the word 'DUPLICATE'
 
             if desc_term_label == "Title":
                 if  metadata[item_ark][inner_dict_key]== text_value:
