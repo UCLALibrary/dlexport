@@ -143,7 +143,6 @@ AND p.webapp_name = :collection
 ORDER BY pi.item_ark
 """
 
-
 def clean(dirty):
     '''
     Returns a cleaned string, stripped of all newlines and carriage returns.
@@ -263,7 +262,7 @@ class Dlexport:
         # keep track of all 2nd-tier keys
         # count number of rows in result
         metadata = {}
-        csvHeaders = ['Project Name','Item ARK', 'Parent ARK', 'Object Type', 'File Name', 'Item Sequence']
+        csvHeaders = ['Project Name','Item ARK', 'Parent ARK', 'Object Type', 'File Name', 'Item Sequence', 'Duplicate']
         nRows = 0
 
         for (project_title, item_ark, item_sequence, desc_term_label, 
@@ -292,7 +291,9 @@ class Dlexport:
                     'Object Type': object_type,
                     'File Name': file_location_str,
                     'Item Sequence': '' if item_sequence is None else str(item_sequence)
+                                    
                 }
+
 
             if qualifier_label in (False, None) or len(qualifier_label) <= 0:
                 inner_dict_key = desc_term_label
@@ -311,6 +312,15 @@ class Dlexport:
                 )
             else:
                 metadata[item_ark][inner_dict_key] = text_value
+
+            #check if the title field contains the word 'duplicate'
+            if desc_term_label == "Title":
+                if  metadata[item_ark][inner_dict_key]== text_value:
+                    string_text_value = str(text_value)
+                    if 'duplicate' in string_text_value.lower():
+                        metadata[item_ark]['Duplicate'] = 'Yes'    
+            else:
+                pass
 
         cursor.close()
 
@@ -419,6 +429,7 @@ if __name__ == '__main__':
             action='store_true',
             required=False,
             help='include master file names in the output')
+       
 
         # TODO: add args to choose btw json, csv, and xml
         # TODO: arg to choose char encoding (UTF-8, UTF-16, etc.)
