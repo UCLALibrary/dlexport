@@ -284,10 +284,17 @@ class Dlexport:
                     indexOfdigi = len("http://digilib.library.ucla.edu/")
                     file_location_str = file_location[indexOfdigi:]
 
+                #add ark:/ format to ark string for csv output
+                readable_item_ark = 'ark:/' + str(item_ark)
+                if parent_ark == None:
+                    readable_parent_ark = ''
+                else:
+                    readable_parent_ark = 'ark:/' + str(parent_ark)
+
                 metadata[item_ark] = {
                     'Project Name': project_title,
-                    'Item ARK': item_ark,
-                    'Parent ARK': parent_ark,
+                    'Item ARK': readable_item_ark,
+                    'Parent ARK': readable_parent_ark,
                     'Object Type': object_type,
                     'File Name': file_location_str,
                     'Item Sequence': '' if item_sequence is None else str(item_sequence)
@@ -331,7 +338,7 @@ class Dlexport:
             cursor.prepare(THUMBNAIL_QUERY)
             cursor.execute(None, collection=collection)
 
-            for (item_ark, file_name, file_location) in cursor:
+            for (item_ark, file_name, file_location) in cursor:           
                 metadata[item_ark]['thumbnailImageName'] = file_name
 
             cursor.close()
