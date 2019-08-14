@@ -286,6 +286,7 @@ class Dlexport:
 
                 #add ark:/ format to ark string for csv output
                 readable_item_ark = 'ark:/' + str(item_ark)
+                #check if this item has a parent ark because the collection level item will not
                 if parent_ark == None:
                     readable_parent_ark = ''
                 else:
