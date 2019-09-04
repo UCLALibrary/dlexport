@@ -32,6 +32,7 @@ SELECT
     b.item_ark, 
     b.item_sequence,
     b.statusid_fk,
+    q.status,
     a.desc_term_label, 
     a.core_desc_term, 
     a.qualifier_label, 
@@ -87,6 +88,9 @@ ON a.item_id = b.divid_pk
 
 INNER JOIN projects c 
 ON b.projectid_fk = c.projectid_pk 
+
+LEFT OUTER JOIN qa_status q
+ON b.statusid_fk = q.statusid_pk
 
 INNER JOIN 
     (SELECT objectid_pk, object_label, object_type
@@ -263,10 +267,10 @@ class Dlexport:
         # keep track of all 2nd-tier keys
         # count number of rows in result
         metadata = {}
-        csvHeaders = ['Project Name','Item ARK', 'QA Status', 'Parent ARK', 'Object Type', 'File Name', 'Item Sequence', 'Duplicate']
+        csvHeaders = ['Project Name','Item ARK', 'QA Status ID', 'QA Status', 'Parent ARK', 'Object Type', 'File Name', 'Item Sequence', 'Duplicate']
         nRows = 0
 
-        for (project_title, item_ark, item_sequence, statusid_fk, desc_term_label, 
+        for (project_title, item_ark, item_sequence, statusid_fk, status, desc_term_label, 
             core_desc_term, qualifier_label, text_value, parent_ark, 
             object_type, parent_obj_type, file_name, file_location) in cursor:
 
@@ -293,12 +297,14 @@ class Dlexport:
                 else:
                     readable_parent_ark = 'ark:/' + str(parent_ark)
 
+                #change statusid_fk to a string
                 qa_status = str(statusid_fk)
 
                 metadata[item_ark] = {
                     'Project Name': project_title,
                     'Item ARK': readable_item_ark,
-                    'QA Status' : qa_status,
+                    'QA Status ID': qa_status,
+                    'QA Status': status,
                     'Parent ARK': readable_parent_ark,
                     'Object Type': object_type,
                     'File Name': file_location_str,
