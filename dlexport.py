@@ -267,7 +267,7 @@ class Dlexport:
         # keep track of all 2nd-tier keys
         # count number of rows in result
         metadata = {}
-        csvHeaders = ['Project Name','Item ARK', 'QA Status ID', 'QA Status', 'Parent ARK', 'Object Type', 'File Name', 'Item Sequence', 'Duplicate']
+        csvHeaders = ['Project Name','Item ARK','Parent ARK', 'Item Status ID', 'Item Status', 'Object Type', 'File Name', 'Item Sequence', 'Duplicate']
         nRows = 0
 
         for (project_title, item_ark, item_sequence, statusid_fk, status, desc_term_label, 
@@ -303,9 +303,9 @@ class Dlexport:
                 metadata[item_ark] = {
                     'Project Name': project_title,
                     'Item ARK': readable_item_ark,
-                    'QA Status ID': qa_status,
-                    'QA Status': status,
                     'Parent ARK': readable_parent_ark,
+                    'Item Status ID': qa_status,
+                    'Item Status': status,
                     'Object Type': object_type,
                     'File Name': file_location_str,
                     'Item Sequence': '' if item_sequence is None else str(item_sequence)
