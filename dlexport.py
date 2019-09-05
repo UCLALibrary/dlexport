@@ -272,8 +272,8 @@ class Dlexport:
                       'Duplicate']
         nRows = 0
 
-        for (project_title, item_ark, item_sequence, statusid_fk, status, desc_term_label, 
-            core_desc_term, qualifier_label, text_value, parent_ark, 
+        for (project_title, item_ark, item_sequence, statusid_fk, status,
+             desc_term_label, core_desc_term, qualifier_label, text_value, parent_ark, 
             object_type, parent_obj_type, file_name, file_location) in cursor:
 
             nRows += 1
