@@ -299,14 +299,12 @@ class Dlexport:
                 else:
                     readable_parent_ark = 'ark:/' + str(parent_ark)
 
-                #change statusid_fk to a string
-                qa_status = str(statusid_fk)
 
                 metadata[item_ark] = {
                     'Project Name': project_title,
                     'Item ARK': readable_item_ark,
                     'Parent ARK': readable_parent_ark,
-                    'Item Status ID': qa_status,
+                    'Item Status ID': str(statusid_fk),
                     'Item Status': status,
                     'Object Type': object_type,
                     'File Name': file_location_str,
@@ -333,7 +331,7 @@ class Dlexport:
             else:
                 metadata[item_ark][inner_dict_key] = text_value
 
-            #check if the title field contains the word 'duplicate'
+            #check if the title field contains the word 'duplicate' or the word 'delete'
             if desc_term_label == "Title":
                 if  metadata[item_ark][inner_dict_key] == text_value:
                     string_text_value = (str(text_value)).lower()
