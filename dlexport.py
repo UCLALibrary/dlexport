@@ -31,6 +31,8 @@ SELECT
     c.project_title, 
     b.item_ark, 
     b.item_sequence,
+    b.statusid_fk,
+    q.status,
     a.desc_term_label, 
     a.core_desc_term, 
     a.qualifier_label, 
@@ -86,6 +88,9 @@ ON a.item_id = b.divid_pk
 
 INNER JOIN projects c 
 ON b.projectid_fk = c.projectid_pk 
+
+LEFT OUTER JOIN qa_status q
+ON b.statusid_fk = q.statusid_pk
 
 INNER JOIN 
     (SELECT objectid_pk, object_label, object_type
@@ -262,11 +267,13 @@ class Dlexport:
         # keep track of all 2nd-tier keys
         # count number of rows in result
         metadata = {}
-        csvHeaders = ['Project Name','Item ARK', 'Parent ARK', 'Object Type', 'File Name', 'Item Sequence', 'Duplicate']
+        csvHeaders = ['Project Name','Item ARK','Parent ARK', 'Item Status ID',
+                      'Item Status', 'Object Type', 'File Name', 'Item Sequence',
+                      'Duplicate']
         nRows = 0
 
-        for (project_title, item_ark, item_sequence, desc_term_label, 
-            core_desc_term, qualifier_label, text_value, parent_ark, 
+        for (project_title, item_ark, item_sequence, statusid_fk, status,
+             desc_term_label, core_desc_term, qualifier_label, text_value, parent_ark, 
             object_type, parent_obj_type, file_name, file_location) in cursor:
 
             nRows += 1
@@ -292,10 +299,13 @@ class Dlexport:
                 else:
                     readable_parent_ark = 'ark:/' + str(parent_ark)
 
+
                 metadata[item_ark] = {
                     'Project Name': project_title,
                     'Item ARK': readable_item_ark,
                     'Parent ARK': readable_parent_ark,
+                    'Item Status ID': str(statusid_fk),
+                    'Item Status': status,
                     'Object Type': object_type,
                     'File Name': file_location_str,
                     'Item Sequence': '' if item_sequence is None else str(item_sequence)
@@ -321,7 +331,7 @@ class Dlexport:
             else:
                 metadata[item_ark][inner_dict_key] = text_value
 
-            #check if the title field contains the word 'duplicate'
+            #check if the title field contains the word 'duplicate' or the word 'delete'
             if desc_term_label == "Title":
                 if  metadata[item_ark][inner_dict_key] == text_value:
                     string_text_value = (str(text_value)).lower()
