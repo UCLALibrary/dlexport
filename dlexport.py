@@ -269,7 +269,7 @@ class Dlexport:
         metadata = {}
         csvHeaders = ['Project Name','Item ARK','Parent ARK', 'Item Status ID',
                       'Item Status', 'Object Type', 'File Name', 'Item Sequence',
-                      'Duplicate']
+                      'Duplicate', 'Delete in Title']
         nRows = 0
 
         for (project_title, item_ark, item_sequence, statusid_fk, status,
@@ -337,6 +337,8 @@ class Dlexport:
                     string_text_value = (str(text_value)).lower()
                     if (bool(re.search(r"\bduplicate", string_text_value)) == True) or (bool(re.search(r"\bdup ", string_text_value)) == True):
                         metadata[item_ark]['Duplicate'] = 'true'
+                    if (bool(re.search(r"\bdelete\b", string_text_value)) == True):
+                    	metadata[item_ark]['Delete in Title'] = 'true'
             else:
                 pass
 
