@@ -338,7 +338,7 @@ class Dlexport:
                     if (bool(re.search(r"\bduplicate", string_text_value)) == True) or (bool(re.search(r"\bdup ", string_text_value)) == True):
                         metadata[item_ark]['Duplicate'] = 'true'
                     if (bool(re.search(r"\bdelete\b", string_text_value)) == True):
-                    	metadata[item_ark]['Delete in Title'] = 'true'
+                        metadata[item_ark]['Delete in Title'] = 'true'
             else:
                 pass
 
@@ -351,8 +351,9 @@ class Dlexport:
             cursor.prepare(THUMBNAIL_QUERY)
             cursor.execute(None, collection=collection)
 
-            for (item_ark, file_name, file_location) in cursor:           
-                metadata[item_ark]['thumbnailImageName'] = file_name
+            for (item_ark, file_name, file_location) in cursor:
+                if item_ark in metadata:           
+                    metadata[item_ark]['thumbnailImageName'] = file_name
 
             cursor.close()
 
@@ -364,7 +365,8 @@ class Dlexport:
             cursor.execute(None, collection=collection)
 
             for (item_ark, file_name, file_location) in cursor:
-                metadata[item_ark]['masterImageName'] = file_name
+                if item_ark in metadata:
+                    metadata[item_ark]['masterImageName'] = file_name
 
             cursor.close()
 
