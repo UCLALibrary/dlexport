@@ -343,8 +343,7 @@ class Dlexport:
                 pass
 
             if 'File Name' in metadata[item_ark]:
-                if (metadata[item_ark]['File Name']).count(file_location_str)==0:
-                    metadata[item_ark]['File Name'] = '{0}|~|{1}'.format(
+                metadata[item_ark]['File Name'] = '{0}|~|{1}'.format(
                             metadata[item_ark]['File Name'],
                         file_location_str
                     )
