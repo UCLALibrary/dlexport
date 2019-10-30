@@ -342,12 +342,6 @@ class Dlexport:
             else:
                 pass
 
-            if 'File Name' in metadata[item_ark]:
-                metadata[item_ark]['File Name'] = '{0}|~|{1}'.format(
-                            metadata[item_ark]['File Name'],
-                        file_location_str
-                    )
-
         cursor.close()
 
         # check if we want thumbnails too
