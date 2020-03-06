@@ -342,6 +342,18 @@ class Dlexport:
             else:
                 pass
 
+            #check if this is paginated material
+            if desc_term_label == "Title":
+                if  metadata[item_ark][inner_dict_key] == text_value:
+                    string_text_value = (str(text_value)).lower()
+                    if (bool(re.search(r"page", string_text_value)) == True):
+                        headers = ['viewingHint', 'Text direction', 'Visibility', 'IIIF Range']
+                        if headers not in csvHeaders:
+                            csvHeaders.append(headers)
+            else:
+                pass
+
+
         cursor.close()
 
         # check if we want thumbnails too
