@@ -282,7 +282,8 @@ class Dlexport:
                 if parent_obj_type == 'Collection':
                     object_type = 'Work'
                 elif object_type == 'Page':
-                    object_type = 'Page'
+                    paginated_object_type = 'Page'
+                    object_type = 'ChildWork'
                 else:
                     object_type = 'ChildWork'
 
@@ -310,13 +311,15 @@ class Dlexport:
                     'Item Status': status,
                     'Object Type': object_type,
                     'File Name': file_location_str,
-                    'Item Sequence': '' if item_sequence is None else str(item_sequence)
+                    'Item Sequence': '' if item_sequence is None else str(item_sequence),
+                    'Pagination': paginated_object_type
                                     
                 }
-            if metadata[item_ark]['Object Type'] == 'Page':
+
+            if metadata[item_ark]['Pagination'] == 'Page':
                 if 'viewingHint' not in csvHeaders:
                     csvHeaders.extend(('viewingHint', 'Text direction', 'Visibility', 'IIIF Range'))
-                if parent_ark in metadata:
+                if parent_ark in metadata and metadata[parent_ark]['Object Type'] == 'Work':
                     metadata[parent_ark]['viewingHint'] = 'paged'    
                 
 
