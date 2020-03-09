@@ -278,6 +278,8 @@ class Dlexport:
 
             nRows += 1
 
+            # set a variable for metadata dictionary
+            # will only have a value if the object type in DLCS is Page
             paginated_object_type = None
             if object_type != 'Collection':
                 if parent_obj_type == 'Collection':
