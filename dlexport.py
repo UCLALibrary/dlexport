@@ -278,6 +278,7 @@ class Dlexport:
 
             nRows += 1
 
+            paginated_object_type = None
             if object_type != 'Collection':
                 if parent_obj_type == 'Collection':
                     object_type = 'Work'
@@ -302,7 +303,6 @@ class Dlexport:
                 else:
                     readable_parent_ark = 'ark:/' + str(parent_ark)
 
-
                 metadata[item_ark] = {
                     'Project Name': project_title,
                     'Item ARK': readable_item_ark,
@@ -316,12 +316,13 @@ class Dlexport:
                                     
                 }
 
+            #check if in DLCS object_type is "Page"
+            #if so, add four new fields for paginated materials
             if metadata[item_ark]['Pagination'] == 'Page':
                 if 'viewingHint' not in csvHeaders:
                     csvHeaders.extend(('viewingHint', 'Text direction', 'Visibility', 'IIIF Range'))
                 if parent_ark in metadata and metadata[parent_ark]['Object Type'] == 'Work':
                     metadata[parent_ark]['viewingHint'] = 'paged'    
-                
 
             if qualifier_label in (False, None) or len(qualifier_label) <= 0:
                 inner_dict_key = desc_term_label
