@@ -281,6 +281,8 @@ class Dlexport:
             if object_type != 'Collection':
                 if parent_obj_type == 'Collection':
                     object_type = 'Work'
+                elif object_type == 'Page':
+                    object_type = 'Page'
                 else:
                     object_type = 'ChildWork'
 
@@ -311,7 +313,12 @@ class Dlexport:
                     'Item Sequence': '' if item_sequence is None else str(item_sequence)
                                     
                 }
-
+            if metadata[item_ark]['Object Type'] == 'Page':
+                if 'viewingHint' not in csvHeaders:
+                    csvHeaders.extend(('viewingHint', 'Text direction', 'Visibility', 'IIIF Range'))
+                if parent_ark in metadata:
+                    metadata[parent_ark]['viewingHint'] = 'paged'    
+                
 
             if qualifier_label in (False, None) or len(qualifier_label) <= 0:
                 inner_dict_key = desc_term_label
@@ -339,20 +346,9 @@ class Dlexport:
                         metadata[item_ark]['Duplicate'] = 'true'
                     if (bool(re.search(r"\bdelete\b", string_text_value)) == True):
                         metadata[item_ark]['Delete in Title'] = 'true'
+
             else:
                 pass
-
-            #check if this is paginated material
-            if desc_term_label == "Title":
-                if  metadata[item_ark][inner_dict_key] == text_value:
-                    string_text_value = (str(text_value)).lower()
-                    if (bool(re.search(r"page", string_text_value)) == True):
-                        headers = ['viewingHint', 'Text direction', 'Visibility', 'IIIF Range']
-                        if headers not in csvHeaders:
-                            csvHeaders.append(headers)
-            else:
-                pass
-
 
         cursor.close()
 
