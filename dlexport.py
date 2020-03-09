@@ -320,6 +320,7 @@ class Dlexport:
 
             #check if in DLCS object_type is "Page"
             #if so, add four new fields for paginated materials
+            #add paged value to work row if paginated material
             if metadata[item_ark]['Pagination'] == 'Page':
                 if 'viewingHint' not in csvHeaders:
                     csvHeaders.extend(('viewingHint', 'Text direction', 'Visibility', 'IIIF Range'))
@@ -352,7 +353,6 @@ class Dlexport:
                         metadata[item_ark]['Duplicate'] = 'true'
                     if (bool(re.search(r"\bdelete\b", string_text_value)) == True):
                         metadata[item_ark]['Delete in Title'] = 'true'
-
             else:
                 pass
 
