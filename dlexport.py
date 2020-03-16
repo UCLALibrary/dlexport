@@ -148,6 +148,17 @@ AND p.webapp_name = :collection
 ORDER BY pi.item_ark
 """
 
+EDITED_ITEMS_QUERY = """ 
+SELECT project_items.create_date,
+project_items.last_edit_date,
+project_items.item_ark, project_items.node_title,
+project_items.modified_by,
+projects.project_title FROM project_items, projects
+WHERE projects.projectid_pk = project_items.projectid_fk
+AND project_items.last_edit_date >=  '01-FEB-2020'
+ORDER BY last_edit_date DESC
+"""
+
 def clean(dirty):
     '''
     Returns a cleaned string, stripped of all newlines and carriage returns.
@@ -427,6 +438,21 @@ class Dlexport:
                 raise
             csvWriter.writerow(cleanedValuesList)
         return f.getvalue()
+
+    def getEditedItems(self, db=None):
+        if db not in self.getDatabases():
+            print('Error: invalid database name!')
+            raise DlexportException(ERR_INVALID_DATABASE)
+
+        conn = self.connectToDb(db)
+        cursor = conn.cursor()
+        cursor.prepare(EDITED_ITEMS_QUERY)
+        cursor.execute(None)
+
+        cursor.close()
+
+
+
 
 
 if __name__ == '__main__':
