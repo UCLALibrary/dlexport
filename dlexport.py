@@ -148,10 +148,11 @@ AND p.webapp_name = :collection
 ORDER BY pi.item_ark
 """
 
+
 EDITED_ITEMS_QUERY = """
 SELECT project_items.create_date, project_items.last_edit_date, project_items.item_ark, project_items.node_title, project_items.modified_by,
 projects.project_title from project_items, projects
-where projects.projectid_pk = project_items.projectid_fk  and project_items.last_edit_date >=  '18-FEB-2020'
+where projects.projectid_pk = project_items.projectid_fk  and project_items.last_edit_date >= (sysdate - 30)
 ORDER BY last_edit_date DESC 
 """
 

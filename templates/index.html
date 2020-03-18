@@ -26,11 +26,11 @@
       </button>
       <div class="collapse navbar-collapse" id="navbarsExampleDefault">
         <ul class="navbar-nav mr-auto">
+            <li>
+            <a class="navbar-brand" class="navbar-link" href="/edited/">Edited Items Report</a>
+          </li>
           <li class="nav-item active">
             <a class="navbar-brand" href="http://digital2.library.ucla.edu/">UCLA Digital Library <span class="sr-only">(current)</span></a>
-          </li>
-            <li>
-            <a class="navbar-link" href="/edited/">Edited Items Report</a>
           </li>
             </div>
           </li>
@@ -52,6 +52,10 @@
           <div class="col-md-4">
 
             <form method="post">
+            <!--
+              *****
+              HIDING DATABASE SELECTION UNTIL WE HAVE MORE THAN ONE TO CHOOSE FROM
+              *****
               <div class="form-group">
                 <label for="exampleFormControlSelect1">Database:</label>
                 <select name="db" class="form-control" id="exampleFormControlSelect1">
@@ -61,6 +65,7 @@
                   {% endfor %}
                 </select>
               </div>
+            -->
 
               <input type="hidden" name="db" value="{{ databases[0][0] }}">
 
