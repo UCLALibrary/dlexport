@@ -150,7 +150,7 @@ ORDER BY pi.item_ark
 
 
 EDITED_ITEMS_QUERY = """
-SELECT project_items.create_date, project_items.last_edit_date, project_items.item_ark, project_items.node_title, project_items.modified_by,
+SELECT project_items.create_date, project_items.last_edit_date, project_items.item_ark, project_items.node_title, project_items.modified_by, project_items.created_by,
 projects.project_title from project_items, projects
 where projects.projectid_pk = project_items.projectid_fk  and project_items.last_edit_date >= (sysdate - 30)
 ORDER BY last_edit_date DESC 
@@ -434,18 +434,19 @@ class Dlexport:
         conn = self.connectToDb(db)
         cursor = conn.cursor()
         cursor.execute(EDITED_ITEMS_QUERY)
-        metadata = []
+        edited_items = []
         csvHeaders = [
                         "Item Created Date",
                         "Last Edit Date",
                         "Item Ark", "Title",
                         "Modified By",
+                        "Created By",
                         "Project Title"
                         ]
         nRows = 0
 
         for item in cursor:
-            metadata.append(item)
+            edited_items.append(item)
             nRows += 1
 
         cursor.close()
@@ -456,7 +457,7 @@ class Dlexport:
             raise DlexportException(ERR_EMPTY_COLLECTION)
 
         self.csvHeaders = csvHeaders
-        self.metadata = metadata
+        self.edited_items = edited_items
         
     def toEditedCsv(self):
         '''
@@ -469,7 +470,7 @@ class Dlexport:
         # write header
         csvWriter.writerow([clean(i) for i in self.csvHeaders])
         # write a line for each item in the collection
-        for item in self.metadata:
+        for item in self.edited_items:
             csvWriter.writerow(item)
         return f.getvalue()
 
