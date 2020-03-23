@@ -149,13 +149,13 @@ ORDER BY pi.item_ark
 """
 
 
+
 EDITED_ITEMS_QUERY = """
 SELECT project_items.create_date, project_items.last_edit_date, project_items.item_ark, project_items.node_title, project_items.modified_by, project_items.created_by,
 projects.project_title from project_items, projects
 where projects.projectid_pk = project_items.projectid_fk  and project_items.last_edit_date >= (sysdate - 30)
 ORDER BY last_edit_date DESC 
 """
-
 
 def clean(dirty):
     '''
@@ -287,9 +287,15 @@ class Dlexport:
 
             nRows += 1
 
+            # set a variable for metadata dictionary
+            # will only have a value if the object type in DLCS is Page
+            paginated_object_type = None
             if object_type != 'Collection':
                 if parent_obj_type == 'Collection':
                     object_type = 'Work'
+                elif object_type == 'Page':
+                    paginated_object_type = 'Page'
+                    object_type = 'ChildWork'
                 else:
                     object_type = 'ChildWork'
 
@@ -308,7 +314,6 @@ class Dlexport:
                 else:
                     readable_parent_ark = 'ark:/' + str(parent_ark)
 
-
                 metadata[item_ark] = {
                     'Project Name': project_title,
                     'Item ARK': readable_item_ark,
@@ -317,10 +322,19 @@ class Dlexport:
                     'Item Status': status,
                     'Object Type': object_type,
                     'File Name': file_location_str,
-                    'Item Sequence': '' if item_sequence is None else str(item_sequence)
+                    'Item Sequence': '' if item_sequence is None else str(item_sequence),
+                    'Pagination': paginated_object_type
                                     
                 }
 
+            #check if in DLCS object_type is "Page"
+            #if so, add four new fields for paginated materials
+            #add paged value to work row if paginated material
+            if metadata[item_ark]['Pagination'] == 'Page':
+                if 'viewingHint' not in csvHeaders:
+                    csvHeaders.extend(('viewingHint', 'Text direction', 'Visibility', 'IIIF Range'))
+                if parent_ark in metadata and metadata[parent_ark]['Object Type'] == 'Work':
+                    metadata[parent_ark]['viewingHint'] = 'paged'    
 
             if qualifier_label in (False, None) or len(qualifier_label) <= 0:
                 inner_dict_key = desc_term_label
