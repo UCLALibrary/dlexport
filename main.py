@@ -60,9 +60,35 @@ def index():
             message='Error: "{}" requests not supported, use "GET" or "POST"'.format(
                 request.method))
 
+@app.route('/edited/', methods=['GET', 'POST'])
+def edited():
+    if request.method == 'POST':
 
+        if request.form['outfile'] is '':
+            return renderTemplate(dlexport.ERR_INVALID_FILENAME)
 
+        try:
+            exporter.getEditedItems(
+                request.form['db'],
+                )
+            response = make_response(exporter.toEditedCsv())
+            response.headers['Content-Disposition'] = (
+                'attachment; filename={}.csv'.format(request.form['outfile']))
+            return response
 
+        except dlexport.DlexportException as e:
+            return renderTemplate(e.err)
+
+    elif request.method == 'GET':
+        return render_template(
+            'edited.html',
+            databases=exporter.getDatabases(True))
+
+    else:
+        return render_template(
+            'error.html',
+            message='Error: "{}" requests not supported, use "GET" or "POST"'.format(
+                request.method))
 
 
 if __name__ == '__main__':

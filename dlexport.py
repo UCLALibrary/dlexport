@@ -149,6 +149,14 @@ ORDER BY pi.item_ark
 """
 
 
+
+EDITED_ITEMS_QUERY = """
+SELECT project_items.create_date, project_items.last_edit_date, project_items.item_ark, project_items.node_title, project_items.modified_by, project_items.created_by,
+projects.project_title from project_items, projects
+where projects.projectid_pk = project_items.projectid_fk  and project_items.last_edit_date >= (sysdate - 30)
+ORDER BY last_edit_date DESC 
+"""
+
 def clean(dirty):
     '''
     Returns a cleaned string, stripped of all newlines and carriage returns.
@@ -429,6 +437,57 @@ class Dlexport:
             csvWriter.writerow(cleanedValuesList)
         return f.getvalue()
 
+    def getEditedItems(self, db=None):
+
+        # check for valid database name
+        if db not in self.getDatabases():
+            print('Error: invalid database name!')
+            raise DlexportException(ERR_INVALID_DATABASE)
+
+        # connect to Oracle DB and execute query
+        conn = self.connectToDb(db)
+        cursor = conn.cursor()
+        cursor.execute(EDITED_ITEMS_QUERY)
+        edited_items = []
+        csvHeaders = [
+                        "Item Created Date",
+                        "Last Edit Date",
+                        "Item Ark", "Title",
+                        "Modified By",
+                        "Created By",
+                        "Project Title"
+                        ]
+        nRows = 0
+
+        for item in cursor:
+            edited_items.append(item)
+            nRows += 1
+
+        cursor.close()
+        conn.close()
+
+        if nRows == 0:
+            print('Error: No items have been edited in the last 30 days')
+            raise DlexportException(ERR_EMPTY_COLLECTION)
+
+        self.csvHeaders = csvHeaders
+        self.edited_items = edited_items
+        
+    def toEditedCsv(self):
+        '''
+        Returns CSV representation of the metadata.
+        '''
+        f = io.StringIO()
+        csvWriter = csv.writer(
+            f, delimiter=',', quotechar='"', quoting=csv.QUOTE_ALL)
+
+        # write header
+        csvWriter.writerow([clean(i) for i in self.csvHeaders])
+        # write a line for each item in the collection
+        for item in self.edited_items:
+            csvWriter.writerow(item)
+        return f.getvalue()
+
 
 if __name__ == '__main__':
     '''
@@ -475,6 +534,7 @@ if __name__ == '__main__':
 
         exporter = Dlexport('db-secrets.json')
         exporter.getMetadata(argsNamespace.database, argsNamespace.collection, argsNamespace.thumbnails, argsNamespace.masters)
+
 
         if not argsNamespace.quiet:
             # TODO: add switch on output formats (json, xml, etc.)
