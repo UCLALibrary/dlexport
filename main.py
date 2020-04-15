@@ -90,6 +90,6 @@ def edited():
             message='Error: "{}" requests not supported, use "GET" or "POST"'.format(
                 request.method))
 
-    
+
 if __name__ == '__main__':
     app.run()
