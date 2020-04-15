@@ -355,14 +355,12 @@ class Dlexport:
                 file_location_str = file_location[indexOfdigi:]
                 if 'File Name' not in metadata[item_ark]:
                     metadata[item_ark]['File Name'] = file_location_str
-
                 elif 'File Name' in metadata[item_ark]:
-                    if file_location_str != '':
-                        if file_location_str not in metadata[item_ark]['File Name']:
-                            metadata[item_ark]['File Name'] = '{0}|~|{1}'.format(
-                                    metadata[item_ark]['File Name'],
-                                file_location_str
-                                )
+                    if file_location_str not in metadata[item_ark]['File Name']:
+                        metadata[item_ark]['File Name'] = '{0}|~|{1}'.format(
+                            metadata[item_ark]['File Name'],
+                            file_location_str
+                            )
                 else:
                     pass
 
