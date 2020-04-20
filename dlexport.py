@@ -302,8 +302,6 @@ class Dlexport:
             # check if we've started accounting for this item yet
             if item_ark not in metadata:
                 
-                
-
                 #add ark:/ format to ark string for csv output
                 readable_item_ark = 'ark:/' + str(item_ark)
                 #check if this item has a parent ark because the collection level item will not
@@ -319,7 +317,7 @@ class Dlexport:
                     'Item Status ID': str(statusid_fk),
                     'Item Status': status,
                     'Object Type': object_type,
-                    'Item Sequence': '' if item_sequence is None else str(item_sequence)
+                    'Item Sequence': '' if item_sequence is None else str(item_sequence),
                     'Pagination': paginated_object_type
                                     
                 }
