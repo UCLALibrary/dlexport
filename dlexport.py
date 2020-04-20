@@ -301,10 +301,8 @@ class Dlexport:
 
             # check if we've started accounting for this item yet
             if item_ark not in metadata:
-                file_location_str = ''
-                if file_location:
-                    indexOfdigi = len("http://digilib.library.ucla.edu/")
-                    file_location_str = file_location[indexOfdigi:]
+                
+                
 
                 #add ark:/ format to ark string for csv output
                 readable_item_ark = 'ark:/' + str(item_ark)
@@ -321,8 +319,7 @@ class Dlexport:
                     'Item Status ID': str(statusid_fk),
                     'Item Status': status,
                     'Object Type': object_type,
-                    'File Name': file_location_str,
-                    'Item Sequence': '' if item_sequence is None else str(item_sequence),
+                    'Item Sequence': '' if item_sequence is None else str(item_sequence)
                     'Pagination': paginated_object_type
                                     
                 }
@@ -347,10 +344,11 @@ class Dlexport:
 
             # check if inner_dict_key already maps to a value
             if inner_dict_key in metadata[item_ark]:
-                metadata[item_ark][inner_dict_key] = '{0}|~|{1}'.format(
-                    metadata[item_ark][inner_dict_key],
-                    text_value
-                )
+                if text_value not in metadata[item_ark][inner_dict_key]:
+                    metadata[item_ark][inner_dict_key] = '{0}|~|{1}'.format(
+                        metadata[item_ark][inner_dict_key],
+                        text_value
+                    )
             else:
                 metadata[item_ark][inner_dict_key] = text_value
 
@@ -365,6 +363,20 @@ class Dlexport:
             else:
                 pass
 
+            if file_location:
+                indexOfdigi = len("http://digilib.library.ucla.edu/")
+                file_location_str = file_location[indexOfdigi:]
+                if 'File Name' not in metadata[item_ark]:
+                    metadata[item_ark]['File Name'] = file_location_str
+                elif 'File Name' in metadata[item_ark]:
+                    if file_location_str not in metadata[item_ark]['File Name']:
+                        metadata[item_ark]['File Name'] = '{0}|~|{1}'.format(
+                            metadata[item_ark]['File Name'],
+                            file_location_str
+                            )
+                else:
+                    pass
+
         cursor.close()
 
         # check if we want thumbnails too
@@ -375,8 +387,14 @@ class Dlexport:
             cursor.execute(None, collection=collection)
 
             for (item_ark, file_name, file_location) in cursor:
-                if item_ark in metadata:           
-                    metadata[item_ark]['thumbnailImageName'] = file_name
+                if item_ark in metadata:
+                    if 'thumbnailImageName' not in metadata[item_ark]:
+                        metadata[item_ark]['thumbnailImageName'] = file_name
+                    elif 'thumbnailImageName' in metadata[item_ark]:
+                        metadata[item_ark]['thumbnailImageName'] = '{0}|~|{1}'.format(
+                        metadata[item_ark]['thumbnailImageName'],
+                        file_name
+                        )           
 
             cursor.close()
 
@@ -389,7 +407,14 @@ class Dlexport:
 
             for (item_ark, file_name, file_location) in cursor:
                 if item_ark in metadata:
-                    metadata[item_ark]['masterImageName'] = file_name
+                    if 'masterImageName' not in metadata[item_ark]:
+                        metadata[item_ark]['masterImageName'] = file_name
+                    elif 'masterImageName' in metadata[item_ark]:
+                        metadata[item_ark]['masterImageName'] = '{0}|~|{1}'.format(
+                        metadata[item_ark]['masterImageName'],
+                        file_name
+                        )
+                    
 
             cursor.close()
 
