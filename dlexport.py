@@ -278,7 +278,7 @@ class Dlexport:
         metadata = {}
         csvHeaders = ['Project Name','Item ARK','Parent ARK', 'Item Status ID',
                       'Item Status', 'Object Type', 'File Name', 'Item Sequence',
-                      'Duplicate', 'Delete in Title']
+                      'Duplicate', 'Delete in Title', 'Conceptual Work']
         nRows = 0
 
         for (project_title, item_ark, item_sequence, statusid_fk, status,
@@ -296,15 +296,16 @@ class Dlexport:
                 elif object_type == 'Page':
                     paginated_object_type = 'Page'
                     object_type = 'ChildWork'
+                elif object_type == 'Work':
+                    paginated_object_type = "Conceptual Work"
                 else:
                     object_type = 'ChildWork'
 
             # check if we've started accounting for this item yet
+            #add ark:/ format to ark string for csv output
+            #check if this item has a parent ark because the collection level item will not
             if item_ark not in metadata:
-                
-                #add ark:/ format to ark string for csv output
                 readable_item_ark = 'ark:/' + str(item_ark)
-                #check if this item has a parent ark because the collection level item will not
                 if parent_ark == None:
                     readable_parent_ark = ''
                 else:
@@ -329,7 +330,12 @@ class Dlexport:
                 if 'viewingHint' not in csvHeaders:
                     csvHeaders.extend(('viewingHint', 'Text direction', 'Visibility', 'IIIF Range'))
                 if parent_ark in metadata and metadata[parent_ark]['Object Type'] == 'Work':
-                    metadata[parent_ark]['viewingHint'] = 'paged'    
+                    metadata[parent_ark]['viewingHint'] = 'paged'
+            elif metadata[item_ark]["Pagination"] == "Conceptual Work":
+                metadata[item_ark]["Conceptual Work"] = "Conceptual Work Only"
+            else:
+                pass 
+
 
             if qualifier_label in (False, None) or len(qualifier_label) <= 0:
                 inner_dict_key = desc_term_label
@@ -342,7 +348,7 @@ class Dlexport:
 
             # check if inner_dict_key already maps to a value
             if inner_dict_key in metadata[item_ark]:
-                if text_value not in metadata[item_ark][inner_dict_key]:
+                if text_value != None and text_value not in metadata[item_ark][inner_dict_key]:
                     metadata[item_ark][inner_dict_key] = '{0}|~|{1}'.format(
                         metadata[item_ark][inner_dict_key],
                         text_value
