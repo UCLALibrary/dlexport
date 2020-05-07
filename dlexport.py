@@ -278,7 +278,7 @@ class Dlexport:
         metadata = {}
         csvHeaders = ['Project Name','Item ARK','Parent ARK', 'Item Status ID',
                       'Item Status', 'Object Type', 'File Name', 'Item Sequence',
-                      'Duplicate', 'Delete in Title', 'Conceptual Work']
+                      'Duplicate', 'Delete in Title']
         nRows = 0
 
         for (project_title, item_ark, item_sequence, statusid_fk, status,
@@ -296,8 +296,7 @@ class Dlexport:
                 elif object_type == 'Page':
                     paginated_object_type = 'Page'
                     object_type = 'ChildWork'
-                elif object_type == 'Work':
-                    paginated_object_type = "Conceptual Work"
+
                 else:
                     object_type = 'ChildWork'
 
@@ -331,8 +330,6 @@ class Dlexport:
                     csvHeaders.extend(('viewingHint', 'Text direction', 'Visibility', 'IIIF Range'))
                 if parent_ark in metadata and metadata[parent_ark]['Object Type'] == 'Work':
                     metadata[parent_ark]['viewingHint'] = 'paged'
-            elif metadata[item_ark]["Pagination"] == "Conceptual Work":
-                metadata[item_ark]["Conceptual Work"] = "Conceptual Work Only"
             else:
                 pass 
 
