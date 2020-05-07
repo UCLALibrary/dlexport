@@ -296,7 +296,6 @@ class Dlexport:
                 elif object_type == 'Page':
                     paginated_object_type = 'Page'
                     object_type = 'ChildWork'
-
                 else:
                     object_type = 'ChildWork'
 
@@ -330,9 +329,6 @@ class Dlexport:
                     csvHeaders.extend(('viewingHint', 'Text direction', 'Visibility', 'IIIF Range'))
                 if parent_ark in metadata and metadata[parent_ark]['Object Type'] == 'Work':
                     metadata[parent_ark]['viewingHint'] = 'paged'
-            else:
-                pass 
-
 
             if qualifier_label in (False, None) or len(qualifier_label) <= 0:
                 inner_dict_key = desc_term_label
