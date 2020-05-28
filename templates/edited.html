@@ -70,15 +70,23 @@
             -->
 
               <input type="hidden" name="db" value="{{ databases[0][0] }}">
-
+              <div>
+                <label for="start_date">Enter a Start Date:</label>
+                <input type="text" name="start_date" class="form-control" placeholder="DD/MM/YYYY" aria-label="DD/MM/YYYY">
+              </div>
+              <br/>
+              <div>
+                <label for="end_date">Enter an End Date:</label>
+                <input type="text" name="end_date" class="form-control" placeholder="DD/MM/YYYY" aria-label="DD/MM/YYYY">
+              </div>
+              <br/>
               <div class="input-group mb-3">
-                <input type="text" name='outfile' class="form-control" placeholder="Name your file" aria-label="Recipient's username" aria-describedby="basic-addon2">
+                <input type="text" name='outfile' class="form-control" placeholder="Name your file" aria-label="Name you file" aria-describedby="basic-addon2">
                 <div class="input-group-append">
                   <span class="input-group-text" id="basic-addon2">.csv</span>
                 </div>
               </div>
               <br/>
-
               <div class="btn-group" role="group" aria-label="Third group">
                 <button type="submit" name="submit" value="Download" class="btn-lg btn-primary">Download</button>
               </div>
