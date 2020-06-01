@@ -153,7 +153,7 @@ ORDER BY pi.item_ark
 EDITED_ITEMS_QUERY = """
 SELECT project_items.create_date, project_items.last_edit_date, project_items.item_ark, project_items.node_title,  project_items.modified_by,  project_items.created_by, projects.project_title
 FROM project_items, projects
-WHERE projects.projectid_pk = project_items.projectid_fk  AND project_items.last_edit_date >= TO_DATE(:start_date, 'MM/DD/YYYY') AND project_items.last_edit_date <= TO_DATE(:end_date, 'MM/DD/YYYY')
+WHERE projects.projectid_pk = project_items.projectid_fk  AND project_items.last_edit_date >= TO_DATE(:start_date, 'YYYY-MM-DD') AND project_items.last_edit_date <= TO_DATE(:end_date, 'YYYY-MM-DD')
 ORDER BY last_edit_date DESC
 """
 

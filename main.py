@@ -72,7 +72,6 @@ def edited():
                 request.form['db'],
                 request.form['start_date'],
                 request.form['end_date']
-
                 )
             response = make_response(exporter.toEditedCsv())
             response.headers['Content-Disposition'] = (
