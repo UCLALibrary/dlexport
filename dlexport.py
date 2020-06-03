@@ -151,10 +151,19 @@ ORDER BY pi.item_ark
 
 
 EDITED_ITEMS_QUERY = """
-SELECT project_items.create_date, project_items.last_edit_date, project_items.item_ark, project_items.node_title, project_items.modified_by, project_items.created_by,
-projects.project_title from project_items, projects
-where projects.projectid_pk = project_items.projectid_fk  and project_items.last_edit_date >= (sysdate - 30)
-ORDER BY last_edit_date DESC 
+SELECT 
+    project_items.create_date,
+    project_items.last_edit_date,
+    project_items.item_ark,
+    project_items.node_title,
+    project_items.modified_by,
+    project_items.created_by,
+    projects.project_title
+FROM project_items, projects
+WHERE projects.projectid_pk = project_items.projectid_fk 
+    AND project_items.last_edit_date >= TO_DATE(:start_date, 'YYYY-MM-DD')
+    AND project_items.last_edit_date <= TO_DATE(:end_date, 'YYYY-MM-DD')
+ORDER BY last_edit_date DESC
 """
 
 def clean(dirty):
@@ -459,7 +468,7 @@ class Dlexport:
             csvWriter.writerow(cleanedValuesList)
         return f.getvalue()
 
-    def getEditedItems(self, db=None):
+    def getEditedItems(self, db=None, start_date=None, end_date=None):
 
         # check for valid database name
         if db not in self.getDatabases():
@@ -469,12 +478,14 @@ class Dlexport:
         # connect to Oracle DB and execute query
         conn = self.connectToDb(db)
         cursor = conn.cursor()
-        cursor.execute(EDITED_ITEMS_QUERY)
+        cursor.prepare(EDITED_ITEMS_QUERY)
+        cursor.execute(None, start_date=start_date, end_date=end_date)
         edited_items = []
         csvHeaders = [
                         "Item Created Date",
                         "Last Edit Date",
-                        "Item Ark", "Title",
+                        "Item Ark",
+                        "Title",
                         "Modified By",
                         "Created By",
                         "Project Title"
