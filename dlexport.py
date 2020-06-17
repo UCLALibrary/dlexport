@@ -352,9 +352,9 @@ class Dlexport:
             if inner_dict_key in metadata[item_ark]:
                 if text_value != None and text_value not in metadata[item_ark][inner_dict_key]:
                     metadata[item_ark][inner_dict_key] = '{0}|~|{1}'.format(
-                    metadata[item_ark][inner_dict_key],
-                    text_value
-                    )
+                        metadata[item_ark][inner_dict_key],
+                        text_value
+                        )
             elif text_value == None:
                 pass
             else:
