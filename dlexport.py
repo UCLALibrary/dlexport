@@ -354,7 +354,9 @@ class Dlexport:
                     metadata[item_ark][inner_dict_key] = '{0}|~|{1}'.format(
                         metadata[item_ark][inner_dict_key],
                         text_value
-                    )
+                        )
+            elif text_value == None:
+                pass
             else:
                 metadata[item_ark][inner_dict_key] = text_value
 
