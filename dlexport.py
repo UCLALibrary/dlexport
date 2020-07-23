@@ -347,7 +347,6 @@ class Dlexport:
             # check if we've encountered a new header field
             if inner_dict_key not in csvHeaders:
                 csvHeaders.append(inner_dict_key)
-
             # check if inner_dict_key already maps to a value
             if inner_dict_key in metadata[item_ark]:
                 if text_value != None and text_value not in metadata[item_ark][inner_dict_key]:
@@ -359,10 +358,9 @@ class Dlexport:
                 pass
             else:
                 metadata[item_ark][inner_dict_key] = text_value
-
             #check if the title field contains the word 'duplicate' or the word 'delete'
-            if desc_term_label == "Title":
-                if  metadata[item_ark][inner_dict_key] == text_value:
+            if desc_term_label == "Title" and desc_term_label in metadata[item_ark]:
+                if metadata[item_ark][inner_dict_key] == text_value:
                     string_text_value = (str(text_value)).lower()
                     if (bool(re.search(r"\bduplicate", string_text_value)) == True) or (bool(re.search(r"\bdup ", string_text_value)) == True):
                         metadata[item_ark]['Duplicate'] = 'true'
