@@ -14,6 +14,8 @@ import os
 import pprint
 import re
 
+from noid import mint
+
 os.environ['NLS_LANG'] = '.UTF8'
 
 
@@ -326,7 +328,7 @@ class Dlexport:
                     'Item Status': status,
                     'Object Type': object_type,
                     'Item Sequence': '' if item_sequence is None else str(item_sequence),
-                    'Pagination': paginated_object_type
+                    'Pagination': paginated_object_type,
                                     
                 }
 
@@ -358,6 +360,7 @@ class Dlexport:
                 pass
             else:
                 metadata[item_ark][inner_dict_key] = text_value
+
             #check if the title field contains the word 'duplicate' or the word 'delete'
             if desc_term_label == "Title" and desc_term_label in metadata[item_ark]:
                 if metadata[item_ark][inner_dict_key] == text_value:
@@ -368,7 +371,6 @@ class Dlexport:
                         metadata[item_ark]['Delete in Title'] = 'true'
             else:
                 pass
-
             if file_location:
                 indexOfdigi = len("http://digilib.library.ucla.edu/")
                 file_location_str = file_location[indexOfdigi:]
@@ -380,50 +382,37 @@ class Dlexport:
                             metadata[item_ark]['File Name'],
                             file_location_str
                             )
-                else:
-                    pass
 
+        #breaks multi-asset works into new childworks
+        metadata_copy = metadata.copy()
+        for item_ark in metadata_copy.keys():
+            ark_prefix = metadata[item_ark]['Item ARK']
+            parent_ark = metadata[item_ark]['Parent ARK']
+            type_object = metadata[item_ark]['Object Type']
+            if 'File Name' in metadata[item_ark]:
+                if '|~|' in metadata[item_ark]['File Name']:
+                    file_list = metadata[item_ark]['File Name'].split('|~|')
+                    if file_list is not None:
+                        file_list.sort()
+                        metadata[item_ark]['File Name'] = ''
+                        for f in file_list:
+                            sequence = int(file_list.index(f)) + 1
+                            noid_item_ark = mint(scheme=str(ark_prefix[:11]),naa=str(ark_prefix[11:]))
+                            if noid_item_ark not in metadata:
+                                metadata[noid_item_ark]= {
+                                    'Item ARK': noid_item_ark,
+                                    'Object Type': 'Page',
+                                    'Parent ARK': ark_prefix,
+                                    'Title': 'Page {}'.format(sequence),
+                                    'Project Name': project_title,
+                                    'File Name': f,
+                                    'Item Sequence': str(sequence)
+                                    }
+                            #if childworks are being split, keep original parent         
+                            if type_object == 'ChildWork':
+                                metadata[noid_item_ark]['Parent ARK'] = parent_ark
+                                
         cursor.close()
-
-        # check if we want thumbnails too
-        if thumbnails:
-            csvHeaders.append('thumbnailImageName')
-            cursor = conn.cursor()
-            cursor.prepare(THUMBNAIL_QUERY)
-            cursor.execute(None, collection=collection)
-
-            for (item_ark, file_name, file_location) in cursor:
-                if item_ark in metadata:
-                    if 'thumbnailImageName' not in metadata[item_ark]:
-                        metadata[item_ark]['thumbnailImageName'] = file_name
-                    elif 'thumbnailImageName' in metadata[item_ark]:
-                        metadata[item_ark]['thumbnailImageName'] = '{0}|~|{1}'.format(
-                        metadata[item_ark]['thumbnailImageName'],
-                        file_name
-                        )           
-
-            cursor.close()
-
-        # check if we want masters too
-        if masters:
-            csvHeaders.append('masterImageName')
-            cursor = conn.cursor()
-            cursor.prepare(MASTER_IMG_QUERY)
-            cursor.execute(None, collection=collection)
-
-            for (item_ark, file_name, file_location) in cursor:
-                if item_ark in metadata:
-                    if 'masterImageName' not in metadata[item_ark]:
-                        metadata[item_ark]['masterImageName'] = file_name
-                    elif 'masterImageName' in metadata[item_ark]:
-                        metadata[item_ark]['masterImageName'] = '{0}|~|{1}'.format(
-                        metadata[item_ark]['masterImageName'],
-                        file_name
-                        )
-                    
-
-            cursor.close()
-
         conn.close()
 
         if nRows == 0:
