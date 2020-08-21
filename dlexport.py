@@ -408,10 +408,11 @@ class Dlexport:
                                     'File Name': f,
                                     'Item Sequence': str(sequence)
                                     }
-                            #if childworks are being split, keep original parent         
+                            #if childworks are being split, keep original metadata         
                             if type_object == 'ChildWork':
-                                metadata[noid_item_ark]['Parent ARK'] = parent_ark
-                                
+                                for key, value in metadata[item_ark].items():
+                                    if key not in ['Item ARK', 'Object Type', 'Title', 'File Name', 'Item Sequence']:
+                                        metadata[noid_item_ark][key] = value
         cursor.close()
         conn.close()
 
