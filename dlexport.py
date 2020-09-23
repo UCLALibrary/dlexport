@@ -263,7 +263,7 @@ class Dlexport:
         else:
             return False
 
-    def getMetadata(self, db=None, collection=None, thumbnails=False, masters=False):
+    def getMetadata(self, db=None, collection=None):
         '''
         Get the metadata and store in data member,
         '''
