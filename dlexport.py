@@ -11,8 +11,9 @@ import functools
 import io
 from json import loads, dumps
 import os
-import pprint
 import re
+import random
+import urllib.parse
 
 from noid import mint
 
@@ -174,6 +175,12 @@ def clean(dirty):
     '''
     return dirty.replace('\r', '').replace('\n', '')
 
+def findArk(metadata_dict,file_name):
+    for item_ark in metadata_dict.keys():
+        if metadata_dict[item_ark]['Object Type'] != 'Work' and metadata_dict[item_ark]['Object Type'] != 'Collection':
+            if 'File Name' in metadata_dict[item_ark]:
+                if metadata_dict[item_ark]['File Name'] == file_name:
+                    return item_ark
 
 class DlexportException(Exception):
     '''
@@ -263,7 +270,7 @@ class Dlexport:
         else:
             return False
 
-    def getMetadata(self, db=None, collection=None):
+    def getMetadata(self, db=None, collection=None, thumbnail=None):
         '''
         Get the metadata and store in data member,
         '''
@@ -289,7 +296,7 @@ class Dlexport:
         metadata = {}
         csvHeaders = ['Project Name','Item ARK','Parent ARK', 'Item Status ID',
                       'Item Status', 'Object Type', 'File Name', 'Item Sequence',
-                      'Duplicate', 'Delete in Title']
+                      'Duplicate', 'Delete in Title', 'iiif_access_url']
         nRows = 0
 
         for (project_title, item_ark, item_sequence, statusid_fk, status,
@@ -329,7 +336,7 @@ class Dlexport:
                     'Object Type': object_type,
                     'Item Sequence': '' if item_sequence is None else str(item_sequence),
                     'Pagination': paginated_object_type,
-                                    
+                    'iiif_access_url': ''                  
                 }
 
             #check if in DLCS object_type is "Page"
@@ -385,6 +392,7 @@ class Dlexport:
 
         #breaks multi-asset works into new childworks
         metadata_copy = metadata.copy()
+
         for item_ark in metadata_copy.keys():
             ark_prefix = metadata[item_ark]['Item ARK']
             parent_ark = metadata[item_ark]['Parent ARK']
@@ -413,6 +421,14 @@ class Dlexport:
                                 for key, value in metadata[item_ark].items():
                                     if key not in ['Item ARK', 'Object Type', 'Title', 'File Name', 'Item Sequence']:
                                         metadata[noid_item_ark][key] = value
+                        if metadata[item_ark]['iiif_access_url'] == '':
+                            thumbnail_choice = {'first-thumb':(file_list[0]),
+                                                'second-thumb':(file_list[-1]),
+                                                'third-thumb':(file_list[random.randint(0,len(file_list)-1)])
+                                                }
+                            thumbnail_ark = findArk(metadata,thumbnail_choice[thumbnail])
+                            ark_url = 'https://iiif.library.ucla.edu/iiif/2/'+ str(urllib.parse.quote(thumbnail_ark, safe=''))
+                            metadata[item_ark]['iiif_access_url'] = ark_url
         cursor.close()
         conn.close()
 

@@ -38,6 +38,7 @@ def index():
             exporter.getMetadata(
                 request.form['db'],
                 request.form['appname'],
+                request.form['thumbnail']
                 )
             response = make_response(exporter.toCsv())
             response.headers['Content-Disposition'] = (
