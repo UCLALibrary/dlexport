@@ -182,6 +182,23 @@ def findArk(metadata_dict,file_name):
                 if metadata_dict[item_ark]['File Name'] == file_name:
                     return item_ark
 
+def nameChildPages(file_list, pageName, metadata_dict, parent):
+    #create dict for pageName selection and values
+    pageName_dict = {'page-number':['Page 1', 'Page 2'],
+                    'front-back':['Front', 'Back'],
+                    'recto-verso':['Recto', 'Verso']
+                    }
+    if len(file_list) == 2:
+        for item_ark in metadata_dict.keys():
+            if metadata_dict[item_ark]['Parent ARK'] == parent:
+                metadata_dict[item_ark]['Title'] = 'Title'
+                if metadata_dict[item_ark]['Item Sequence'] == '1':
+                    metadata_dict[item_ark]['Title'] = pageName_dict[pageName][0]
+                elif metadata_dict[item_ark]['Item Sequence'] == '2':
+                    metadata_dict[item_ark]['Title'] = pageName_dict[pageName][1]
+    return metadata_dict
+
+
 class DlexportException(Exception):
     '''
     Throw if anything in the Dlexport class goes wrong.
@@ -270,7 +287,7 @@ class Dlexport:
         else:
             return False
 
-    def getMetadata(self, db=None, collection=None, thumbnail=None):
+    def getMetadata(self, db=None, collection=None, thumbnail=None, pageName=None):
         '''
         Get the metadata and store in data member,
         '''
@@ -411,7 +428,7 @@ class Dlexport:
                                     'Item ARK': noid_item_ark,
                                     'Object Type': 'Page',
                                     'Parent ARK': ark_prefix,
-                                    'Title': 'Page {}'.format(sequence),
+                                    'Title': 'Page {}'.format(str(sequence)),
                                     'Project Name': project_title,
                                     'File Name': f,
                                     'Item Sequence': str(sequence)
@@ -429,6 +446,10 @@ class Dlexport:
                             thumbnail_ark = findArk(metadata,thumbnail_choice[thumbnail])
                             ark_url = 'https://iiif.library.ucla.edu/iiif/2/'+ str(urllib.parse.quote(thumbnail_ark, safe=''))
                             metadata[item_ark]['iiif_access_url'] = ark_url
+                        if len(file_list) == 2:
+                            nameChildPages(file_list, pageName, metadata, ark_prefix)
+                        else:
+                            pass
         cursor.close()
         conn.close()
 
