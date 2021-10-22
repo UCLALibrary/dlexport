@@ -313,7 +313,7 @@ class Dlexport:
         metadata = {}
         csvHeaders = ['Project Name','Item ARK','Parent ARK', 'Item Status ID',
                       'Item Status', 'Object Type', 'File Name', 'Item Sequence',
-                      'Duplicate', 'Delete in Title', 'iiif_access_url']
+                      'Duplicate', 'Delete in Title', 'Thumbnail']
         nRows = 0
 
         for (project_title, item_ark, item_sequence, statusid_fk, status,
@@ -353,7 +353,7 @@ class Dlexport:
                     'Object Type': object_type,
                     'Item Sequence': '' if item_sequence is None else str(item_sequence),
                     'Pagination': paginated_object_type,
-                    'iiif_access_url': ''                  
+                    'Thumbnail': ''
                 }
 
             #check if in DLCS object_type is "Page"
@@ -438,14 +438,14 @@ class Dlexport:
                                 for key, value in metadata[item_ark].items():
                                     if key not in ['Item ARK', 'Object Type', 'Title', 'File Name', 'Item Sequence']:
                                         metadata[noid_item_ark][key] = value
-                        if metadata[item_ark]['iiif_access_url'] == '':
+                        if metadata[item_ark]['Thumbnail'] == '':
                             thumbnail_choice = {'first-thumb':(file_list[0]),
                                                 'second-thumb':(file_list[-1]),
                                                 'third-thumb':(file_list[random.randint(0,len(file_list)-1)])
                                                 }
                             thumbnail_ark = findArk(metadata,thumbnail_choice[thumbnail])
                             ark_url = 'https://iiif.library.ucla.edu/iiif/2/'+ str(urllib.parse.quote(thumbnail_ark, safe=''))
-                            metadata[item_ark]['iiif_access_url'] = ark_url
+                            metadata[item_ark]['Thumbnail'] = ark_url
                         if len(file_list) == 2:
                             nameChildPages(file_list, pageName, metadata, ark_prefix)
                         else:
