@@ -30,7 +30,7 @@
             <a class="navbar-brand" class="navbar-link" href="/edited/">Edited Items Report</a>
           </li>
           <li class="nav-item active">
-            <a class="navbar-brand" href="http://digital2.library.ucla.edu/">UCLA Digital Library <span class="sr-only">(current)</span></a>
+            <a class="navbar-brand" href="http://digital.library.ucla.edu/">UCLA Digital Library <span class="sr-only">(current)</span></a>
           </li>
             </div>
           </li>
@@ -118,6 +118,7 @@
               <div class="btn-group" role="group" aria-label="Third group">
                 <button type="submit" name="submit" value="Download" class="btn-lg btn-primary">Download</button>
               </div>
+            
             </form>
 
           </div> <!-- column -->
@@ -130,14 +131,15 @@
     </main>
 
     <footer class="container">
-      <p>&copy; 2019 UC Regents</p>
+      <p>&copy; 2023 UC Regents</p>
     </footer>
             
     <script>
+      <!--
         $(document).ready(function() {
 
             var db_list = {{ databases|tojson|safe }};
-            var default_db = "lit106";
+            var default_db = "pgdb";
             var hideAllExcept = function(db) {
                 var i;
                 for (i = 0; i < db_list.length; i += 1) {
@@ -160,6 +162,7 @@
             hideAllExcept(default_db);
             $("select[name='appname']").val($("select[name='appname'] > option." + default_db)[0].value);
         });
+        -->
     </script>  
     <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>

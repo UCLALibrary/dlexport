@@ -1,12 +1,13 @@
-'''
+"""
 dlexport.py
 
 Export project metadata from DLCS to CSV or JSON format.
-'''
+"""
 
 import argparse
 import csv
-import cx_Oracle
+from sqlalchemy import create_engine
+from sqlalchemy.sql import text
 import functools
 import io
 from json import loads, dumps
@@ -17,7 +18,7 @@ import urllib.parse
 
 from noid import mint
 
-os.environ['NLS_LANG'] = '.UTF8'
+os.environ["NLS_LANG"] = ".UTF8"
 
 
 SUCCESS = 0
@@ -30,98 +31,64 @@ ERR_INVALID_QUERY = 6
 # TODO: change codes to strings
 
 METADATA_QUERY = """
-SELECT 
-    c.project_title, 
-    b.item_ark, 
-    b.item_sequence,
-    b.statusid_fk,
-    q.status,
-    a.desc_term_label, 
-    a.core_desc_term, 
-    a.qualifier_label, 
-    a.text_value, 
-    parent_join.item_ark AS parent_ark, 
-    v_ot.object_type, 
-    CASE
-        WHEN p_ot.object_type IS NOT NULL
-        THEN p_ot.object_type
-        ELSE ''
-    END AS parent_obj_type, 
-    cf.file_name, cf.file_location
---a.desc_term_label, a.qualifier_label, parent_join.item_ark as parent_ark, b.item_ark, v_ot.object_type, a.text_value as tv 
-FROM 
-    (SELECT 
-        dv.divid_fk AS item_id, 
-        dv.projectid_fk AS project_id, 
-        cdt.desc_term AS core_desc_term, 
-        cdt.core_desc_termid_pk AS core_desc_termid_id, 
-        dt.term_label AS desc_term_label, 
-        dt.desc_termid_pk AS desc_termid_id, 
-        v_qual.qual_text AS qualifier_label,
-        CASE 
+SELECT
+	p.project_title,
+	pi.item_ark,
+	pi.item_sequence,
+	pi.statusid_fk,
+	q.status,
+	dt.term_label as desc_term_label,
+	cdt.desc_term as core_desc_term,
+	v_qual.qual_text AS qualifier_label,
+	CASE 
             WHEN dv.desc_cvid_fk IS NOT NULL 
             THEN ctrl_values.ctrl_val_text 
             ELSE dv.desc_value 
         END AS text_value, 
-        dv.desc_cvid_fk AS desc_control_values_id, 
-        dv.desc_qualifierid_fk AS desc_qualifiers_id, 
-        v_qual.qid AS core_desc_qualifiers_id, 
-        ctrl_values.core_desc_cvid_pk AS core_desc_control_values_id 
-    FROM desc_values dv, desc_terms dt, core_desc_terms cdt, 
-        (SELECT DISTINCT 
-            dq.core_desc_qualifierid_fk AS qid, 
-            cdq.desc_qualifier AS qual_text, 
-            dq.desc_qualifierid_pk AS desc_qual_pk 
-        FROM desc_qualifiers dq, core_desc_qualifiers cdq 
-        WHERE dq.CORE_DESC_QUALIFIERID_FK = cdq.core_desc_qualifierid_pk ) v_qual,
-        (SELECT DISTINCT 
-            cdcv.core_desc_cv AS ctrl_val_text, 
-            dcv.desc_cvid_pk, 
-            cdcv.core_desc_cvid_pk 
-        FROM core_desc_control_values cdcv, desc_control_values dcv 
-        WHERE cdcv.core_desc_cvid_pk = dcv.core_desc_cvid_fk ) ctrl_values 
-    WHERE dv.desc_termid_fk = dt.desc_termid_pk 
-    AND dt.core_desc_termid_fk = cdt.CORE_DESC_TERMID_PK 
-    AND dv.desc_qualifierid_fk = v_qual.desc_qual_pk(+) 
-    AND dv.desc_cvid_fk = ctrl_values.desc_cvid_pk(+)
-    ) a 
-
-INNER JOIN project_items b 
-ON a.item_id = b.divid_pk 
-
-INNER JOIN projects c 
-ON b.projectid_fk = c.projectid_pk 
-
-LEFT OUTER JOIN qa_status q
-ON b.statusid_fk = q.statusid_pk
-
+	parent.item_ark as parent_ark,
+	v_ot.object_type, 
+	CASE
+        WHEN p_ot.object_type IS NOT NULL
+        THEN p_ot.object_type
+        ELSE ''
+    END AS parent_obj_type,
+	cf.file_name,
+	cf.file_location
+	
+FROM project_items pi
+LEFT JOIN desc_values dv ON pi.divid_pk = dv.divid_fk
+LEFT JOIN projects p ON p.projectid_pk = pi.projectid_fk
+LEFT JOIN content_files cf ON pi.divid_pk = cf.divid_fk AND cf.file_use = 'Master'
+LEFT JOIN qa_status q ON pi.statusid_fk = q.statusid_pk
+JOIN desc_terms dt ON dt.desc_termid_pk = dv.desc_termid_fk
+JOIN core_desc_terms cdt ON dt.core_desc_termid_fk = cdt.core_desc_termid_pk
+LEFT JOIN project_items parent ON pi.parent_divid = parent.divid_pk
 INNER JOIN 
     (SELECT objectid_pk, object_label, object_type
     FROM dl_objects, dl_object_types
     WHERE object_typeid_fk = object_typeid_pk
     ) v_ot
-ON v_ot.objectid_pk = b.objectid_fk 
-
-LEFT OUTER JOIN content_files cf
-ON b.divid_pk = cf.divid_fk 
-AND cf.file_use = 'Master'
-
-LEFT OUTER JOIN project_items parent_join
-ON b.parent_divid = parent_join.divid_pk
-
+ON v_ot.objectid_pk = pi.objectid_fk 
 LEFT OUTER JOIN 
     (SELECT objectid_pk, object_label, object_type
     FROM dl_objects, dl_object_types
     WHERE object_typeid_fk = object_typeid_pk
     ) p_ot
-ON p_ot.objectid_pk = parent_join.objectid_fk
-
-WHERE project_id IN 
-    (SELECT projectid_pk 
-    FROM projects 
-    WHERE webapp_name = :collection )
+ON p_ot.objectid_pk = parent.objectid_fk
+LEFT JOIN (SELECT DISTINCT 
+            cdcv.core_desc_cv AS ctrl_val_text, 
+            dcv.desc_cvid_pk, 
+            cdcv.core_desc_cvid_pk 
+        FROM core_desc_control_values cdcv, desc_control_values dcv 
+        WHERE cdcv.core_desc_cvid_pk = dcv.core_desc_cvid_fk ) ctrl_values ON dv.desc_cvid_fk = ctrl_values.desc_cvid_pk
+LEFT JOIN (SELECT DISTINCT 
+            dq.core_desc_qualifierid_fk AS qid, 
+            cdq.desc_qualifier AS qual_text, 
+            dq.desc_qualifierid_pk AS desc_qual_pk 
+        FROM desc_qualifiers dq, core_desc_qualifiers cdq 
+        WHERE dq.core_desc_qualifierid_fk = cdq.core_desc_qualifierid_pk ) v_qual ON dv.desc_qualifierid_fk = v_qual.desc_qual_pk
+where p.webapp_name = :collection
 """
-
 
 COLLECTIONS_QUERY = """
 SELECT project_title, webapp_name 
@@ -139,7 +106,7 @@ WHERE cf.file_use = 'Thumbnail'
 AND p.webapp_name = :collection 
 ORDER BY pi.item_ark
 """
-   
+
 
 MASTER_IMG_QUERY = """
 SELECT pi.item_ark, cf.file_name, cf.file_location 
@@ -150,7 +117,6 @@ WHERE cf.file_use = 'Master'
 AND p.webapp_name = :collection 
 ORDER BY pi.item_ark
 """
-
 
 
 EDITED_ITEMS_QUERY = """
@@ -169,40 +135,47 @@ WHERE projects.projectid_pk = project_items.projectid_fk
 ORDER BY last_edit_date DESC
 """
 
-def clean(dirty):
-    '''
-    Returns a cleaned string, stripped of all newlines and carriage returns.
-    '''
-    return dirty.replace('\r', '').replace('\n', '')
 
-def findArk(metadata_dict,file_name):
+def clean(dirty):
+    """
+    Returns a cleaned string, stripped of all newlines and carriage returns.
+    """
+    return dirty.replace("\r", "").replace("\n", "")
+
+
+def findArk(metadata_dict, file_name):
     for item_ark in metadata_dict.keys():
-        if metadata_dict[item_ark]['Object Type'] != 'Work' and metadata_dict[item_ark]['Object Type'] != 'Collection':
-            if 'File Name' in metadata_dict[item_ark]:
-                if metadata_dict[item_ark]['File Name'] == file_name:
+        if (
+            metadata_dict[item_ark]["Object Type"] != "Work"
+            and metadata_dict[item_ark]["Object Type"] != "Collection"
+        ):
+            if "File Name" in metadata_dict[item_ark]:
+                if metadata_dict[item_ark]["File Name"] == file_name:
                     return item_ark
 
+
 def nameChildPages(file_list, pageName, metadata_dict, parent):
-    #create dict for pageName selection and values
-    pageName_dict = {'page-number':['Page 1', 'Page 2'],
-                    'front-back':['Front', 'Back'],
-                    'recto-verso':['Recto', 'Verso']
-                    }
+    # create dict for pageName selection and values
+    pageName_dict = {
+        "page-number": ["Page 1", "Page 2"],
+        "front-back": ["Front", "Back"],
+        "recto-verso": ["Recto", "Verso"],
+    }
     if len(file_list) == 2:
         for item_ark in metadata_dict.keys():
-            if metadata_dict[item_ark]['Parent ARK'] == parent:
-                metadata_dict[item_ark]['Title'] = 'Title'
-                if metadata_dict[item_ark]['Item Sequence'] == '1':
-                    metadata_dict[item_ark]['Title'] = pageName_dict[pageName][0]
-                elif metadata_dict[item_ark]['Item Sequence'] == '2':
-                    metadata_dict[item_ark]['Title'] = pageName_dict[pageName][1]
+            if metadata_dict[item_ark]["Parent ARK"] == parent:
+                metadata_dict[item_ark]["Title"] = "Title"
+                if metadata_dict[item_ark]["Item Sequence"] == "1":
+                    metadata_dict[item_ark]["Title"] = pageName_dict[pageName][0]
+                elif metadata_dict[item_ark]["Item Sequence"] == "2":
+                    metadata_dict[item_ark]["Title"] = pageName_dict[pageName][1]
     return metadata_dict
 
 
 class DlexportException(Exception):
-    '''
+    """
     Throw if anything in the Dlexport class goes wrong.
-    '''
+    """
 
     def __init__(self, errorCode):
         self.err = errorCode
@@ -212,54 +185,60 @@ class DlexportException(Exception):
 
 
 class Dlexport:
-    '''
+    """
     Exporter class.
-    '''
+    """
 
     def __init__(self, secretsFile):
-        '''
+        """
         Stores secrets in 'private' data mamber.
-        '''
-        with open(secretsFile) as f:
-            self._secrets = loads(f.read())
+        """
+        self._secrets = {
+            "pgdb": {
+                "user": "",
+                "ip": "",
+                "port": "",
+                "pw": "",
+                "db_name": "",
+            }
+        }
 
     def connectToDb(self, db):
-        '''
+        """
         Opens and returns a database connection handle.
-        '''
+        """
         if db not in self.getDatabases():
             raise DlexportException(ERR_INVALID_DATABASE)
 
         database = self._secrets[db]
-        ip = database['ip']
-        port = database['port']
-        sid = database['sid']
+        user = database["user"]
+        pw = database["pw"]
+        ip = database["ip"]
+        port = database["port"]
+        db_name = database["db_name"]
 
-        # assume the following will succeed if the secrets file is not modified
-        dnsTns = cx_Oracle.makedsn(ip, port, sid)
-        return cx_Oracle.connect(
-            database['username'],
-            database['password'],
-            dnsTns)
+        db = create_engine(f"postgresql://{user}:{pw}@{ip}:{port}/{db_name}")
+
+        return db.connect()
 
     def getDbCollections(self, db):
-        '''
+        """
         Returns a list of the given db's collections.
         The inner list always has two elements, project_title and webapp_name.
-        '''
+        """
         conn = self.connectToDb(db)
-        cursor = conn.cursor()
-        cursor.execute(COLLECTIONS_QUERY)
+
+        cursor = conn.execute(text(COLLECTIONS_QUERY))
         dbCollections = [[a, b] for a, b in cursor]
-        cursor.close()
+
         conn.close()
         return dbCollections
 
     def getDatabases(self, includeCollections=False):
-        '''
+        """
         Returns a list of databases.
         The returned list may include a list of the collections for each db.
-        '''
+        """
         # Get list of keys in the secrets
         db_list = [a for a in self._secrets]
         if includeCollections is True:
@@ -269,18 +248,18 @@ class Dlexport:
             return db_list
 
     def isDb(self, db):
-        '''
+        """
         Checks if db exists.
-        '''
+        """
         if db in self.getDatabases():
             return True
         else:
             return False
 
     def isCollectionInDb(self, collection, db):
-        '''
+        """
         Check if collection_name is valid (exists in the given db).
-        '''
+        """
         collections = [item[1] for item in self.getDbCollections(db)]
         if collection in collections:
             return True
@@ -288,169 +267,214 @@ class Dlexport:
             return False
 
     def getMetadata(self, db=None, collection=None, thumbnail=None, pageName=None):
-        '''
+        """
         Get the metadata and store in data member,
-        '''
+        """
         # check for valid database name
         if db not in self.getDatabases():
-            print('Error: invalid database name!')
+            print("Error: invalid database name!")
             raise DlexportException(ERR_INVALID_DATABASE)
 
         # check for valid collection to prevent SQL injection
         if not self.isCollectionInDb(collection, db):
-            print('Error: invalid collection name!')
+            print("Error: invalid collection name!")
             raise DlexportException(ERR_INVALID_COLLECTION)
 
-        # connect to Oracle DB and execute query
+        # connect to DB and execute query
         conn = self.connectToDb(db)
-        cursor = conn.cursor()
-        cursor.prepare(METADATA_QUERY)
-        cursor.execute(None, collection=collection)
+        cursor = conn.execute(text(METADATA_QUERY), {"collection": collection})
 
         # go thru query results, organize metadata in dictionary keyed by item_ark
         # keep track of all 2nd-tier keys
         # count number of rows in result
         metadata = {}
-        csvHeaders = ['Project Name','Item ARK','Parent ARK', 'Item Status ID',
-                      'Item Status', 'Object Type', 'File Name', 'Item Sequence',
-                      'Duplicate', 'Delete in Title', 'Thumbnail']
+        csvHeaders = [
+            "Project Name",
+            "Item ARK",
+            "Parent ARK",
+            "Item Status ID",
+            "Item Status",
+            "Object Type",
+            "File Name",
+            "Item Sequence",
+            "Duplicate",
+            "Delete in Title",
+            "Thumbnail",
+        ]
         nRows = 0
 
-        for (project_title, item_ark, item_sequence, statusid_fk, status,
-             desc_term_label, core_desc_term, qualifier_label, text_value, parent_ark, 
-            object_type, parent_obj_type, file_name, file_location) in cursor:
-
+        for (
+            project_title,
+            item_ark,
+            item_sequence,
+            statusid_fk,
+            status,
+            desc_term_label,
+            core_desc_term,
+            qualifier_label,
+            text_value,
+            parent_ark,
+            object_type,
+            parent_obj_type,
+            file_name,
+            file_location,
+        ) in cursor:
             nRows += 1
 
             # set a variable for metadata dictionary
             # will only have a value if the object type in DLCS is Page
             paginated_object_type = None
-            if object_type != 'Collection':
-                if parent_obj_type == 'Collection':
-                    object_type = 'Work'
-                elif object_type == 'Page':
-                    paginated_object_type = 'Page'
-                    object_type = 'ChildWork'
+            if object_type != "Collection":
+                if parent_obj_type == "Collection":
+                    object_type = "Work"
+                elif object_type == "Page":
+                    paginated_object_type = "Page"
+                    object_type = "ChildWork"
                 else:
-                    object_type = 'ChildWork'
+                    object_type = "ChildWork"
 
             # check if we've started accounting for this item yet
-            #add ark:/ format to ark string for csv output
-            #check if this item has a parent ark because the collection level item will not
+            # add ark:/ format to ark string for csv output
+            # check if this item has a parent ark because the collection level item will not
             if item_ark not in metadata:
-                readable_item_ark = 'ark:/' + str(item_ark)
+                readable_item_ark = "ark:/" + str(item_ark)
                 if parent_ark == None:
-                    readable_parent_ark = ''
+                    readable_parent_ark = ""
                 else:
-                    readable_parent_ark = 'ark:/' + str(parent_ark)
+                    readable_parent_ark = "ark:/" + str(parent_ark)
 
                 metadata[item_ark] = {
-                    'Project Name': project_title,
-                    'Item ARK': readable_item_ark,
-                    'Parent ARK': readable_parent_ark,
-                    'Item Status ID': str(statusid_fk),
-                    'Item Status': status,
-                    'Object Type': object_type,
-                    'Item Sequence': '' if item_sequence is None else str(item_sequence),
-                    'Pagination': paginated_object_type,
-                    'Thumbnail': ''
+                    "Project Name": project_title,
+                    "Item ARK": readable_item_ark,
+                    "Parent ARK": readable_parent_ark,
+                    "Item Status ID": str(statusid_fk),
+                    "Item Status": status,
+                    "Object Type": object_type,
+                    "Item Sequence": ""
+                    if item_sequence is None
+                    else str(item_sequence),
+                    "Pagination": paginated_object_type,
+                    "Thumbnail": "",
                 }
 
-            #check if in DLCS object_type is "Page"
-            #if so, add four new fields for paginated materials
-            #add paged value to work row if paginated material
-            if metadata[item_ark]['Pagination'] == 'Page':
-                if 'viewingHint' not in csvHeaders:
-                    csvHeaders.extend(('viewingHint', 'Text direction', 'Visibility', 'IIIF Range'))
-                if parent_ark in metadata and metadata[parent_ark]['Object Type'] == 'Work':
-                    metadata[parent_ark]['viewingHint'] = 'paged'
+            # check if in DLCS object_type is "Page"
+            # if so, add four new fields for paginated materials
+            # add paged value to work row if paginated material
+            if metadata[item_ark]["Pagination"] == "Page":
+                if "viewingHint" not in csvHeaders:
+                    csvHeaders.extend(
+                        ("viewingHint", "Text direction", "Visibility", "IIIF Range")
+                    )
+                if (
+                    parent_ark in metadata
+                    and metadata[parent_ark]["Object Type"] == "Work"
+                ):
+                    metadata[parent_ark]["viewingHint"] = "paged"
 
             if qualifier_label in (False, None) or len(qualifier_label) <= 0:
                 inner_dict_key = desc_term_label
             else:
-                inner_dict_key = '{0}.{1}'.format(desc_term_label, qualifier_label)
+                inner_dict_key = "{0}.{1}".format(desc_term_label, qualifier_label)
 
             # check if we've encountered a new header field
             if inner_dict_key not in csvHeaders:
                 csvHeaders.append(inner_dict_key)
             # check if inner_dict_key already maps to a value
             if inner_dict_key in metadata[item_ark]:
-                if text_value != None and text_value not in metadata[item_ark][inner_dict_key]:
-                    metadata[item_ark][inner_dict_key] = '{0}|~|{1}'.format(
-                        metadata[item_ark][inner_dict_key],
-                        text_value
-                        )
+                if (
+                    text_value != None
+                    and text_value not in metadata[item_ark][inner_dict_key]
+                ):
+                    metadata[item_ark][inner_dict_key] = "{0}|~|{1}".format(
+                        metadata[item_ark][inner_dict_key], text_value
+                    )
             elif text_value == None:
                 pass
             else:
                 metadata[item_ark][inner_dict_key] = text_value
 
-            #check if the title field contains the word 'duplicate' or the word 'delete'
+            # check if the title field contains the word 'duplicate' or the word 'delete'
             if desc_term_label == "Title" and desc_term_label in metadata[item_ark]:
                 if metadata[item_ark][inner_dict_key] == text_value:
                     string_text_value = (str(text_value)).lower()
-                    if (bool(re.search(r"\bduplicate", string_text_value)) == True) or (bool(re.search(r"\bdup ", string_text_value)) == True):
-                        metadata[item_ark]['Duplicate'] = 'true'
-                    if (bool(re.search(r"\bdelete\b", string_text_value)) == True):
-                        metadata[item_ark]['Delete in Title'] = 'true'
+                    if (bool(re.search(r"\bduplicate", string_text_value)) == True) or (
+                        bool(re.search(r"\bdup ", string_text_value)) == True
+                    ):
+                        metadata[item_ark]["Duplicate"] = "true"
+                    if bool(re.search(r"\bdelete\b", string_text_value)) == True:
+                        metadata[item_ark]["Delete in Title"] = "true"
             else:
                 pass
             if file_location:
                 indexOfdigi = len("http://digilib.library.ucla.edu/")
                 file_location_str = file_location[indexOfdigi:]
-                if 'File Name' not in metadata[item_ark]:
-                    metadata[item_ark]['File Name'] = file_location_str
-                elif 'File Name' in metadata[item_ark]:
-                    if file_location_str not in metadata[item_ark]['File Name']:
-                        metadata[item_ark]['File Name'] = '{0}|~|{1}'.format(
-                            metadata[item_ark]['File Name'],
-                            file_location_str
-                            )
+                if "File Name" not in metadata[item_ark]:
+                    metadata[item_ark]["File Name"] = file_location_str
+                elif "File Name" in metadata[item_ark]:
+                    if file_location_str not in metadata[item_ark]["File Name"]:
+                        metadata[item_ark]["File Name"] = "{0}|~|{1}".format(
+                            metadata[item_ark]["File Name"], file_location_str
+                        )
 
-        #breaks multi-asset works into new childworks
+        # breaks multi-asset works into new childworks
         metadata_copy = metadata.copy()
 
         for item_ark in metadata_copy.keys():
-            ark_prefix = metadata[item_ark]['Item ARK']
-            parent_ark = metadata[item_ark]['Parent ARK']
-            type_object = metadata[item_ark]['Object Type']
-            if 'File Name' in metadata[item_ark]:
-                if '|~|' in metadata[item_ark]['File Name']:
-                    file_list = metadata[item_ark]['File Name'].split('|~|')
+            ark_prefix = metadata[item_ark]["Item ARK"]
+            parent_ark = metadata[item_ark]["Parent ARK"]
+            type_object = metadata[item_ark]["Object Type"]
+            if "File Name" in metadata[item_ark]:
+                if "|~|" in metadata[item_ark]["File Name"]:
+                    file_list = metadata[item_ark]["File Name"].split("|~|")
                     if file_list is not None:
                         file_list.sort()
-                        metadata[item_ark]['File Name'] = ''
+                        metadata[item_ark]["File Name"] = ""
                         for f in file_list:
                             sequence = int(file_list.index(f)) + 1
-                            noid_item_ark = mint(scheme=str(ark_prefix[:11]),naa=str(ark_prefix[11:]))
+                            noid_item_ark = mint(
+                                scheme=str(ark_prefix[:11]), naa=str(ark_prefix[11:])
+                            )
                             if noid_item_ark not in metadata:
-                                metadata[noid_item_ark]= {
-                                    'Item ARK': noid_item_ark,
-                                    'Object Type': 'Page',
-                                    'Parent ARK': ark_prefix,
-                                    'Title': 'Page {}'.format(str(sequence)),
-                                    'Project Name': project_title,
-                                    'File Name': f,
-                                    'Item Sequence': str(sequence)
-                                    }
-                            #if childworks are being split, keep original metadata         
-                            if type_object == 'ChildWork':
+                                metadata[noid_item_ark] = {
+                                    "Item ARK": noid_item_ark,
+                                    "Object Type": "Page",
+                                    "Parent ARK": ark_prefix,
+                                    "Title": "Page {}".format(str(sequence)),
+                                    "Project Name": project_title,
+                                    "File Name": f,
+                                    "Item Sequence": str(sequence),
+                                }
+                            # if childworks are being split, keep original metadata
+                            if type_object == "ChildWork":
                                 for key, value in metadata[item_ark].items():
-                                    if key not in ['Item ARK', 'Object Type', 'Title', 'File Name', 'Item Sequence']:
+                                    if key not in [
+                                        "Item ARK",
+                                        "Object Type",
+                                        "Title",
+                                        "File Name",
+                                        "Item Sequence",
+                                    ]:
                                         metadata[noid_item_ark][key] = value
-                        if metadata[item_ark]['Thumbnail'] == '':
-                            thumbnail_choice = {'first-thumb':(file_list[0]),
-                                                'second-thumb':(file_list[-1]),
-                                                'third-thumb':(file_list[random.randint(0,len(file_list)-1)])
-                                                }
-                            thumbnail_ark = findArk(metadata,thumbnail_choice[thumbnail])
-                            ark_url = 'https://iiif.library.ucla.edu/iiif/2/'+ str(urllib.parse.quote(thumbnail_ark, safe=''))
-                            metadata[item_ark]['Thumbnail'] = ark_url
+                        if metadata[item_ark]["Thumbnail"] == "":
+                            thumbnail_choice = {
+                                "first-thumb": (file_list[0]),
+                                "second-thumb": (file_list[-1]),
+                                "third-thumb": (
+                                    file_list[random.randint(0, len(file_list) - 1)]
+                                ),
+                            }
+                            thumbnail_ark = findArk(
+                                metadata, thumbnail_choice[thumbnail]
+                            )
+                            ark_url = "https://iiif.library.ucla.edu/iiif/2/" + str(
+                                urllib.parse.quote(thumbnail_ark, safe="")
+                            )
+                            metadata[item_ark]["Thumbnail"] = ark_url
                         if len(file_list) == 2:
                             nameChildPages(file_list, pageName, metadata, ark_prefix)
                         else:
                             pass
-        cursor.close()
+
         conn.close()
 
         if nRows == 0:
@@ -461,20 +485,19 @@ class Dlexport:
         self.metadata = metadata
 
     def toJson(self):
-        '''
+        """
         Returns JSON representation of the metadata.
-        '''
+        """
         # print JSON representation to stdout
         # TODO: check that self.metadata exists
-        return dumps(self.metadata,sort_keys=True,indent=4,separators=(',',': '))
+        return dumps(self.metadata, sort_keys=True, indent=4, separators=(",", ": "))
 
     def toCsv(self):
-        '''
+        """
         Returns CSV representation of the metadata.
-        '''
+        """
         f = io.StringIO()
-        csvWriter = csv.writer(
-            f, delimiter=',', quotechar='"', quoting=csv.QUOTE_ALL)
+        csvWriter = csv.writer(f, delimiter=",", quotechar='"', quoting=csv.QUOTE_ALL)
 
         # write header
         csvWriter.writerow([clean(i) for i in self.csvHeaders])
@@ -486,7 +509,7 @@ class Dlexport:
                     clean(v[i])
                     # check csvHeaders to determine if value should be
                     # included
-                    if i in v and v[i] is not None else ''
+                    if i in v and v[i] is not None else ""
                     for i in self.csvHeaders
                 ]
             except AttributeError as e:
@@ -496,50 +519,48 @@ class Dlexport:
         return f.getvalue()
 
     def getEditedItems(self, db=None, start_date=None, end_date=None):
-
         # check for valid database name
         if db not in self.getDatabases():
-            print('Error: invalid database name!')
+            print("Error: invalid database name!")
             raise DlexportException(ERR_INVALID_DATABASE)
 
-        # connect to Oracle DB and execute query
+        # connect to DB and execute query
         conn = self.connectToDb(db)
-        cursor = conn.cursor()
-        cursor.prepare(EDITED_ITEMS_QUERY)
-        cursor.execute(None, start_date=start_date, end_date=end_date)
+        cursor = conn.execute(
+            text(EDITED_ITEMS_QUERY), {"start_date": start_date, "end_date": end_date}
+        )
+
         edited_items = []
         csvHeaders = [
-                        "Item Created Date",
-                        "Last Edit Date",
-                        "Item Ark",
-                        "Title",
-                        "Modified By",
-                        "Created By",
-                        "Project Title"
-                        ]
+            "Item Created Date",
+            "Last Edit Date",
+            "Item Ark",
+            "Title",
+            "Modified By",
+            "Created By",
+            "Project Title",
+        ]
         nRows = 0
 
         for item in cursor:
             edited_items.append(item)
             nRows += 1
 
-        cursor.close()
         conn.close()
 
         if nRows == 0:
-            print('Error: No items have been edited in the last 30 days')
+            print("Error: No items have been edited in the last 30 days")
             raise DlexportException(ERR_EMPTY_COLLECTION)
 
         self.csvHeaders = csvHeaders
         self.edited_items = edited_items
-        
+
     def toEditedCsv(self):
-        '''
+        """
         Returns CSV representation of the metadata.
-        '''
+        """
         f = io.StringIO()
-        csvWriter = csv.writer(
-            f, delimiter=',', quotechar='"', quoting=csv.QUOTE_ALL)
+        csvWriter = csv.writer(f, delimiter=",", quotechar='"', quoting=csv.QUOTE_ALL)
 
         # write header
         csvWriter.writerow([clean(i) for i in self.csvHeaders])
@@ -549,52 +570,62 @@ class Dlexport:
         return f.getvalue()
 
 
-if __name__ == '__main__':
-    '''
+if __name__ == "__main__":
+    """
     Main routine.
-    '''
+    """
     try:
         # parse command line arguments
         parser = argparse.ArgumentParser(
-            description='Export project metadata from DLCS.')
+            description="Export project metadata from DLCS."
+        )
         parser.add_argument(
-            '-d', '--database',
-            metavar='db',
+            "-d", "--database", metavar="db", required=True, help="database to use"
+        )
+        parser.add_argument(
+            "-c",
+            "--collection",
+            metavar="appname",
             required=True,
-            help='database to use')
+            help="digital collection to extract metadata from",
+        )
         parser.add_argument(
-            '-c', '--collection',
-            metavar='appname',
-            required=True,
-            help='digital collection to extract metadata from')
-        parser.add_argument(
-            '-q', '--quiet',
+            "-q",
+            "--quiet",
             default=False,
-            action='store_true',
+            action="store_true",
             required=False,
-            help='suppress all standard output, except for error mesages')
+            help="suppress all standard output, except for error mesages",
+        )
         parser.add_argument(
-            '-t', '--thumbnails',
+            "-t",
+            "--thumbnails",
             default=False,
-            action='store_true',
+            action="store_true",
             required=False,
-            help='include thumbnail file names in the output')
+            help="include thumbnail file names in the output",
+        )
         parser.add_argument(
-            '-m', '--masters',
+            "-m",
+            "--masters",
             default=False,
-            action='store_true',
+            action="store_true",
             required=False,
-            help='include master file names in the output')
-       
+            help="include master file names in the output",
+        )
 
         # TODO: add args to choose btw json, csv, and xml
         # TODO: arg to choose char encoding (UTF-8, UTF-16, etc.)
 
         argsNamespace = parser.parse_args()
 
-        exporter = Dlexport('db-secrets.json')
-        exporter.getMetadata(argsNamespace.database, argsNamespace.collection, argsNamespace.thumbnails, argsNamespace.masters)
-
+        exporter = Dlexport("db-secrets.json")
+        exporter.getMetadata(
+            argsNamespace.database,
+            argsNamespace.collection,
+            argsNamespace.thumbnails,
+            argsNamespace.masters,
+        )
 
         if not argsNamespace.quiet:
             # TODO: add switch on output formats (json, xml, etc.)
