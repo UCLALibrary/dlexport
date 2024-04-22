@@ -1,0 +1,56 @@
+# Default values for dlexport.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 1
+
+image:
+  repository: "uclalibrary/dlexport"
+  tag: ""
+  pullPolicy: "Always"
+
+nameOverride: ""
+
+fullnameOverride: ""
+
+service:
+  type: ClusterIP
+  port: 80
+
+ingress:
+  enabled: "true"
+  className: "nginx"
+  annotations: {}
+  hosts:
+    - host: ""
+      paths:
+        - path: "/"
+          pathType: "ImplementationSpecific"
+  tls: {}
+#    - secretName: "dlexport-tls"
+#      hosts:
+#        - dlcsexport.library.ucla.edu
+
+dlexport:
+  env: {}
+  externalSecrets:
+    enabled: "false"
+    annotations: {}
+    env: {}
+
+# Following resource allocation best practices:
+# memory: requests set equal to limits
+# cpu: requests is set but limits is left undefined
+#resources:
+#  limits:
+#    cpu: 100m
+#    memory: 512Mi
+#  requests:
+#    cpu: 300m
+#    memory: 512Mi
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
