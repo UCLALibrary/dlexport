@@ -35,15 +35,16 @@ ingress:
 
 dlexport:
   env: 
-    env_var1: ""
+    db_hostname: "dba-lib-odb-p01.it.ucla.edu"
+    db_port: "1521"
+    db_sid: "DLCS"
   externalSecrets:
     enabled: "true"
     annotations: 
       argocd.argoproj.io/sync-wave: "-1"
     env:
-      secret1: "/systems/prodrke01/dlexport/secret1"
-      secret2: "/systems/prodrke01/dlexport/secret2"
-      secret3: "/systems/prodrke01/dlexport/secret3"
+      db_username: "/systems/prodrke01/dlexport/db_username"
+      db_password: "/systems/prodrke01/dlexport/db_password"
 
 # Following resource allocation best practices:
 # memory: requests set equal to limits
