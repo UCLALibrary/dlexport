@@ -1,0 +1,17 @@
+---
+
+name: Push Helm Chart to ChartMuseum
+on: 
+  push:
+    paths:
+      - 'charts/**'
+      - '!charts/*-*-values.yaml'
+    branches:
+      - main
+
+jobs:
+  push_to_chart_museum:
+    uses: UCLALibrary/reusable-ghactions-workflows/.github/workflows/cm_helm_chart_push.yml@main
+    with: 
+      CM_PUSH_HELM_VERSION: ${{ vars.CM_PUSH_HELM_VERSION }}
+    secrets: inherit
