@@ -6,7 +6,7 @@ replicaCount: 1
 
 image:
   repository: "uclalibrary/dlexport"
-  tag: ""
+  tag: "10f8674e"
   pullPolicy: "Always"
 
 nameOverride: ""
