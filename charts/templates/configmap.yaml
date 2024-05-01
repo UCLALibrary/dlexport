@@ -6,6 +6,6 @@ metadata:
   labels:
     {{- include "dlexport.labels" . | nindent 4 }}
 data:
-  DB_HOSTNAME: {{ .Values.dlexport.env.db_hostname }}
-  DB_PORT: {{ .Values.dlexport.env.db_port }}
-  DB_SID: {{ .Values.dlexport.env.db_sid }}
+  DB_HOSTNAME: {{ .Values.dlexport.env.db_hostname | quote }}
+  DB_PORT: {{ .Values.dlexport.env.db_port | quote }}
+  DB_SID: {{ .Values.dlexport.env.db_sid | quote }}
