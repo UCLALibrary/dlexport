@@ -1,0 +1,54 @@
+name: Build DLCS Export for Docker Hub
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - 'charts/**'
+  pull_request:
+    branches:
+      - main
+    paths-ignore:
+      - 'charts/**'
+
+jobs:
+  build-for-docker-hub:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set env
+        run: >-
+          echo "TAG=${HEAD_TAG::8}" >> ${GITHUB_ENV};
+          echo ${HEAD_TAG::8}
+        env:
+          HEAD_TAG: ${{ github.event.pull_request.head.sha || github.sha }}
+        shell: bash
+
+      - name: Check out code
+        uses: actions/checkout@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Retag latest if merge to main action
+        id: meta-web
+        uses: docker/metadata-action@v4.1.1
+        with:
+          images: |
+            name=uclalibrary/dlexport
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ steps.meta-web.outputs.tags }}
+            uclalibrary/dlexport:${{ env.TAG }}
