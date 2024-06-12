@@ -1,6 +1,6 @@
 # Secrets
 
-This utility requires a secret file for both local and remote hosting. Email mmatney@library.ucla.edu to request the file, and move it to the root directory of this project.
+This utility requires a secret file for both local and remote hosting. Email mmatney@library.ucla.edu to request the file, and move it to the root directory of this project
 
 Then, edit line 314 of `dlexport.py` and line 5 of `application.py` with the path to the secrets file, relative to the working directory.
 
@@ -8,36 +8,35 @@ Then, edit line 314 of `dlexport.py` and line 5 of `application.py` with the pat
 
 ## Setup Method 1: Using the Docker container
 
-1. **Install Docker and make sure it is running**
+1.  **Install Docker and make sure it is running**
 
-2. **Clone this repo and move to it in your terminal**
+2.  **Clone this repo and move to it in your terminal**
 
-		cd path/to/dlexport
+        cd path/to/dlexport
 
-3. **Start the ssh tunnel**
+3.  **Start the ssh tunnel**
 
-		ssh -L 9001:lit106.library.ucla.edu:1521 <your jump server username>@jump.library.ucla.edu -p 31926
+        ssh -L 9001:lit106.library.ucla.edu:1521 <your jump server username>@jump.library.ucla.edu -p 31926
 
-4. **Build/Run the Docker container**
+4.  **Build/Run the Docker container**
 
-		docker-compose up -d
+        docker-compose up -d
 
-4. **You can now see the app in your browser**
+5.  **You can now see the app in your browser**
 
-	http://127.0.0.1
+    http://127.0.0.1
 
-5. **Make your changes to the application files locally**
+6.  **Make your changes to the application files locally**
 
-	You will be able to see your changes with a simple browser refresh
+    You will be able to see your changes with a simple browser refresh
 
-6. **Shut down the container when you are done**
+7.  **Shut down the container when you are done**
 
-		docker-compose down
+        docker-compose down
 
-7. **Turn off Docker**
+8.  **Turn off Docker**
 
-	It can make your machine sluggish
-
+    It can make your machine sluggish
 
 ## Setup Method 2: Native
 
@@ -141,7 +140,7 @@ eb create --single
 
 The deployment will fail with
 
-	ERROR: Your requirements.txt is invalid. Snapshot your logs for details.
+    ERROR: Your requirements.txt is invalid. Snapshot your logs for details.
 
 because the Oracle DB client is not installed on the server. To fix this, go [here](http://www.oracle.com/technetwork/database/features/instant-client/index-097480.html) to download the Oracle DB client .rpm for both "Instant Client Package - Basic" and "Instant Client Package - SDK" (assuming we are running Amazon Linux on our EB instance). Then, transfer the files with scp, ssh to install them, and re-deploy:
 
