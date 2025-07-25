@@ -1,6 +1,10 @@
+# Context
+
+This utility is intended to be used by software developers within the UCLA Library. It is not for general use. 
+
 # Secrets
 
-This utility requires a secret file for both local and remote hosting. Email mmatney@library.ucla.edu to request the file, and move it to the root directory of this project.
+This utility requires a secret file for both local and remote hosting. Email your UCLA Library SDLS team leader to request the file, and move it to the root directory of this project.
 
 Then, edit line 314 of `dlexport.py` and line 5 of `application.py` with the path to the secrets file, relative to the working directory.
 
