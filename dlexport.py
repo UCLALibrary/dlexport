@@ -70,7 +70,7 @@ FROM
     FROM desc_values dv
     INNER JOIN desc_terms dt ON dv.desc_termid_fk = dt.desc_termid_pk
     INNER JOIN core_desc_terms cdt ON dt.core_desc_termid_fk = cdt.CORE_DESC_TERMID_PK
-    RIGHT OUTER JOIN
+    LEFT OUTER JOIN
         (SELECT DISTINCT 
             dq.core_desc_qualifierid_fk AS qid, 
             cdq.desc_qualifier AS qual_text, 
@@ -78,7 +78,7 @@ FROM
         FROM desc_qualifiers dq, core_desc_qualifiers cdq 
         WHERE dq.CORE_DESC_QUALIFIERID_FK = cdq.core_desc_qualifierid_pk ) v_qual
     ON dv.desc_qualifierid_fk = v_qual.desc_qual_pk
-    RIGHT OUTER JOIN
+    LEFT OUTER JOIN
         (SELECT DISTINCT 
             cdcv.core_desc_cv AS ctrl_val_text, 
             dcv.desc_cvid_pk, 
