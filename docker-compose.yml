@@ -1,9 +1,33 @@
-version: '3'
+# Docker-compose file for local development
 services:
-  flask:
-    build: .
-    ports:
-     - "80:80"
+  dlexport:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: dev
+      args:
+        - APP_USER_UID=${APP_USER_UID:-1000}
     volumes:
-     - .:/app
-    restart: always
+      - .:/home/app_user/project
+    # Keep the container running until stopped via docker compose.
+    command: "sleep infinity"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:16
+    env_file:
+      - .docker-compose_db.env
+    volumes:
+      - pg_data:/var/lib/postgresql/data/
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U django_db -d django_db"]
+      interval: 1s
+      timeout: 1s
+      retries: 5
+      start_period: 1s
+
+
+volumes:
+  pg_data:
