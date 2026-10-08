@@ -1,0 +1,55 @@
+[project]
+name = "dlexport"
+version = "0.1.0"
+description = "Export item metadata from digital collections."
+readme = "README.md"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+]
+
+[dependency-groups]
+dev = [
+    "nodeenv>=1.11.0",
+    "pyright>=1.1.411",
+    "ruff>=0.15.20",
+]
+
+[tool.pyright]
+typeCheckingMode = "strict" # Options: "off", "basic", "standard", "strict"
+useLibraryCodeForTypes = true
+exclude = [ # pylance really wants these - even stuff we don't have like node_modules
+    ".venv",
+    "**/__pycache__",
+    "**/.*",
+    "**/migrations/*.py",
+    "**/node_modules",
+]
+
+[tool.ruff]
+exclude = [".git", ".mypy_cache", ".ruff_cache", ".vscode", "**/migrations/*"]
+line-length = 100
+# Assume Python 3.13
+target-version = "py313"
+
+[tool.ruff.lint]
+select = [
+    "ANN",  # flake8-annotations https://docs.astral.sh/ruff/rules/#flake8-annotations-ann
+    "D",    # pydocstyle         https://docs.astral.sh/ruff/rules/#pydocstyle-d
+    "E501", # line-too-long      https://docs.astral.sh/ruff/rules/line-too-long/
+    "F401", # unused imports     https://docs.astral.sh/ruff/rules/unused-import/
+    "I",    # import sorting     https://docs.astral.sh/ruff/rules/#isort-i
+]
+ignore = [
+    "ANN401", # exception to ANN bundle: pyright handles it and it's annoying
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+"**/apps.py" = [
+    "D", # docstrings
+]
+"**/tests/*.py" = [
+    "D", # docstrings
+]
