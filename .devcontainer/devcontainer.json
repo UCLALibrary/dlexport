@@ -1,0 +1,41 @@
+{
+	"name": "dlexport",
+	"dockerComposeFile": "../docker-compose.yml",
+	"service": "dlexport",
+	"workspaceFolder": "/home/app_user/project",
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"ms-python.python",
+				"charliermarsh.ruff"
+			],
+			"settings": {
+				"editor.formatOnSave": true,
+				"python.defaultInterpreterPath": "/home/app_user/venv/bin/python",
+				"python.analysis.extraPaths": [
+					"/home/app_user/venv/lib/python3.13/site-packages"
+				],
+				"python.terminal.activateEnvInCurrentTerminal": false, // very annoying; rely on $PATH instead
+				"python.terminal.activateEnvironment": false,
+				"python.testing.unittestArgs": [
+					"-v",
+					"-s",
+					".",
+					"-p",
+					"test*.py"
+				],
+				"python.testing.pytestEnabled": false,
+				"python.testing.unittestEnabled": true,
+				"ruff.configurationPreference": "filesystemFirst",
+				"ruff.enable": true,
+				"[python]": {
+					"editor.codeActionsOnSave": {
+						"source.fixAll": "explicit",
+						"source.organizeImports": "never" // ruff handles it
+					},
+					"editor.defaultFormatter": "charliermarsh.ruff"
+				}
+			}
+		}
+	}
+}
