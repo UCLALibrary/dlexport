@@ -1,76 +1,43 @@
 # Context
 
-This utility is intended to be used by software developers within the UCLA Library. It is not for general use. 
+`dlexport` is a CLI utility for exporting metadata from UCLA Library's digital collections database. It is intended to be used by software developers within the UCLA Library. It is not for general use.
 
-# Secrets
+# Developer Information
 
-This utility requires a secret file for both local and remote hosting. Email your UCLA Library SDLS team leader to request the file, and move it to the root directory of this project.
+## Overview of environment
 
-Then, edit line 314 of `dlexport.py` and line 5 of `application.py` with the path to the secrets file, relative to the working directory.
+The development environment requires:
+* `git` (at least version 2)
+* `docker`(version 25+) and `docker compose` (version 2+)
 
-# Local Hosting
+### Dev container
 
-## Setup Method 1: Using the Docker container
+This project comes with a basic dev container definition, in `.devcontainer/devcontainer.json`. It's known to work with VS Code,
+and may work with other IDEs like PyCharm.  For VS Code, it also installs the following extensions:
+- Python (which includes our type checker, pyright, as part of the pylance language server)
+- ruff (formatter and linter)
 
-1. **Install Docker and make sure it is running**
-
-2. **Clone this repo and move to it in your terminal**
-
-		cd path/to/dlexport
-
-3. **Start the ssh tunnel**
-
-		ssh -L 9001:lit106.library.ucla.edu:1521 <your jump server username>@jump.library.ucla.edu -p 31926
-
-4. **Build/Run the Docker container**
-
-		docker-compose up -d
-
-4. **You can now see the app in your browser**
-
-	http://127.0.0.1
-
-5. **Make your changes to the application files locally**
-
-	You will be able to see your changes with a simple browser refresh
-
-6. **Shut down the container when you are done**
-
-		docker-compose down
-
-7. **Turn off Docker**
-
-	It can make your machine sluggish
-
-
-## Setup Method 2: Native
-
-### System
-
-Python 3.4, pip3, virtualenv, and an Oracle database client must be installed on the host machine.
-
-For the Oracle DB client, I used 'oracle-instantclient'. First, go [here](http://www.oracle.com/technetwork/database/features/instant-client/index-097480.html)
-to choose your system platform, accept the user agreement, and download and install both "Instant Client Package - Basic" and "Instant Client Package - SDK". Installation instructions can be found at the bottom of that webpage.
+When prompted by VS Code, click "Reopen in container".  This will (re)build the container, `dlexport`. It will also
+(re)build a copy of that container, `vsc-dlexport-<long_hash>-uid`, install VS Code development tools & extensions within that container,
+and start the `docker compose` system.  VS Code will be connected to the Django container, with all code available for editing in that context.
 
 ### Python Environment
 
-Install virtualenv, then setup a virtual environment and install dependencies using the included requirements.txt:
+This project uses `uv` (see [docs](https://docs.astral.sh/uv/)) for managing Python virtual environments and dependencies, including within the dev container.
 
-```Shell
-sudo pip3 install virtualenv
-cd dlexport
-virtualenv venv-dlexport # create virtualenv
-. venv-dlexport/bin/activate # start up virtualenv
-pip3 install -r requirements.txt
-```
+### Secrets
 
-### Authentication
+TODO: Set up secrets files for development, once PostgreSQL swap with Oracle is complete.
+
+# Running the program
+
+TODO: Update the sections below as CLI is brought up-to-date with our current team practices.
+
+## Authentication
 
 So the application can access the database, open a SSH tunnel from your local machine according to step 1 in the Jdeveloper section of https://docs.library.ucla.edu/display/dlp/SSH+tunneling+to+access+DLCS+database+at+ITS, using port `9001` instead of `9000`.
 
-## Run
-
-### CLI
+## CLI
 
 Keep the virtualenv running to use this utility at the command line.
 
@@ -92,15 +59,7 @@ or, in long form:
 python3 dlexport.py --thumbnails --masters --database lit106 --collection huxle > myFile.csv
 ```
 
-### GUI
-
-Here's how to run the web app on localhost:
-
-```Shell
-python3 application.py
-```
-
-### Cleanup
+## Cleanup
 
 To exit your virtual environment:
 
@@ -120,59 +79,4 @@ To run the automated tests (with virtualenv up and running):
 
 ```Shell
 python3 dlexport-test.py -v
-```
-
-# Remote Hosting - AWS Elastic Beanstalk
-
-To deploy the web app to Elastic Beanstalk, first [install the EB CLI](http://docs.aws.amazon.com/elasticbeanstalk/latest/dg/eb-cli3-install.html) on your system. Then:
-
-```Shell
-cd dlexport
-eb init
-```
-
-There will be a series of prompts.
-
-For "default region", select US West (N. California).
-
-For "aws-access-id" and "aws-secret-key", go [here](http://docs.aws.amazon.com/general/latest/gr/getting-aws-sec-creds.html) and follow the instructions for "Access keys (access key ID and secret access key)". When prompted, click "Download Key File" to get a .csv containing your credentials to enter. Now back to the command line.
-
-For "application to use", create a new application. Choose Python 3.4, and setup SSH with a new key pair. Now create a new single-instance environment:
-
-```Shell
-eb create --single
-```
-
-The deployment will fail with
-
-	ERROR: Your requirements.txt is invalid. Snapshot your logs for details.
-
-because the Oracle DB client is not installed on the server. To fix this, go [here](http://www.oracle.com/technetwork/database/features/instant-client/index-097480.html) to download the Oracle DB client .rpm for both "Instant Client Package - Basic" and "Instant Client Package - SDK" (assuming we are running Amazon Linux on our EB instance). Then, transfer the files with scp, ssh to install them, and re-deploy:
-
-```Shell
-# your file paths may differ
-scp \
-	oracle-instantclient12.1-basic-12.1.0.2.0-1.x86_64.rpm \
-	oracle-instantclient12.1-devel-12.1.0.2.0-1.x86_64.rpm \
-	ec2-user@YOUR.EC2.DOMAIN.NAME:~
-eb ssh
-sudo rpm -i \
-	oracle-instantclient12.1-basic-12.1.0.2.0-1.x86_64.rpm \
-	oracle-instantclient12.1-devel-12.1.0.2.0-1.x86_64.rpm
-export LD_LIBRARY_PATH=/usr/lib/oracle/12.1/client64/lib:$LD_LIBRARY_PATH
-export PATH=/usr/lib/oracle/12.1/client64/bin:$PATH
-logout
-eb deploy
-```
-
-The deploy will succeed, but pointing a browser to the app URL returns HTTP 500. To fix this, move the secrets file to the correct place on the server:
-
-```Shell
-scp \
-	db-secrets.json \
-	ec2-user@YOUR.EC2.DOMAIN.NAME:~
-eb ssh
-sudo mv db-secrets.json /opt/python/current/app
-logout
-eb open
 ```
