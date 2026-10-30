@@ -7,6 +7,8 @@ services:
       target: dev
       args:
         - APP_USER_UID=${APP_USER_UID:-1000}
+    env_file:
+      - .docker-compose_db.env
     volumes:
       - .:/home/app_user/project
     # Keep the container running until stopped via docker compose.
