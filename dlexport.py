@@ -1,24 +1,20 @@
-"""
-dlexport.py
+"""dlexport.py
 
 Export project metadata from DLCS to CSV or JSON format.
 """
 
 import argparse
 import csv
-import cx_Oracle
-import functools
 import io
-from json import loads, dumps
 import os
-import re
 import random
+import re
 import urllib.parse
+from json import dumps
+
+import psycopg
 
 from noid import mint
-
-os.environ["NLS_LANG"] = ".UTF8"
-
 
 SUCCESS = 0
 ERR_INVALID_DATABASE = 1
@@ -113,7 +109,7 @@ ON p_ot.objectid_pk = parent_join.objectid_fk
 WHERE project_id IN 
     (SELECT projectid_pk 
     FROM projects 
-    WHERE webapp_name = :collection )
+    WHERE webapp_name = %(collection)s )
 """
 
 
@@ -130,7 +126,7 @@ FROM projects p
     INNER JOIN project_items pi ON p.projectid_pk = pi.projectid_fk 
     INNER JOIN content_files cf ON pi.divid_pk = cf.divid_fk 
 WHERE cf.file_use = 'Thumbnail' 
-AND p.webapp_name = :collection 
+AND p.webapp_name = %(collection)s
 ORDER BY pi.item_ark
 """
 
@@ -141,7 +137,7 @@ FROM projects p
 INNER JOIN project_items pi ON p.projectid_pk = pi.projectid_fk 
 INNER JOIN content_files cf ON pi.divid_pk = cf.divid_fk 
 WHERE cf.file_use = 'Master' 
-AND p.webapp_name = :collection 
+AND p.webapp_name = %(collection)s
 ORDER BY pi.item_ark
 """
 
@@ -157,16 +153,14 @@ SELECT
     projects.project_title
 FROM project_items, projects
 WHERE projects.projectid_pk = project_items.projectid_fk 
-    AND project_items.last_edit_date >= TO_DATE(:start_date, 'YYYY-MM-DD')
-    AND project_items.last_edit_date <= TO_DATE(:end_date, 'YYYY-MM-DD')
+    AND project_items.last_edit_date >= CAST(%(start_date)s AS DATE)
+    AND project_items.last_edit_date <= CAST(%(end_date)s AS DATE)
 ORDER BY last_edit_date DESC
 """
 
 
 def clean(dirty):
-    """
-    Returns a cleaned string, stripped of all newlines and carriage returns.
-    """
+    """Returns a cleaned string, stripped of all newlines and carriage returns."""
     return dirty.replace("\r", "").replace("\n", "")
 
 
@@ -200,9 +194,7 @@ def nameChildPages(file_list, pageName, metadata_dict, parent):
 
 
 class DlexportException(Exception):
-    """
-    Throw if anything in the Dlexport class goes wrong.
-    """
+    """Throw if anything in the Dlexport class goes wrong."""
 
     def __init__(self, errorCode):
         self.err = errorCode
@@ -212,53 +204,60 @@ class DlexportException(Exception):
 
 
 class Dlexport:
-    """
-    Exporter class.
-    """
+    """Exporter class."""
 
-    def __init__(self, secretsFile):
-        """
-        Stores secrets in 'private' data mamber.
-        """
-        with open(secretsFile) as f:
-            self._secrets = loads(f.read())
+    def __init__(self):
+        """Stores PostgreSQL connection settings from the environment."""
+        required_settings = (
+            "DLEXPORT_DB_HOST",
+            "DLEXPORT_DB_PORT",
+            "DLEXPORT_DB_NAME",
+            "DLEXPORT_DB_USER",
+            "DLEXPORT_DB_PASSWORD",
+        )
+        missing_settings = [setting for setting in required_settings if setting not in os.environ]
+        if missing_settings:
+            raise RuntimeError(
+                "Missing database configuration environment variables: "
+                + ", ".join(missing_settings)
+            )
+
+        self._database_host = os.environ["DLEXPORT_DB_HOST"]
+        self._database_port = int(os.environ["DLEXPORT_DB_PORT"])
+        self._database_name = os.environ["DLEXPORT_DB_NAME"]
+        self._database_user = os.environ["DLEXPORT_DB_USER"]
+        self._database_password = os.environ["DLEXPORT_DB_PASSWORD"]
 
     def connectToDb(self, db):
-        """
-        Opens and returns a database connection handle.
-        """
+        """Opens and returns a database connection handle."""
         if db not in self.getDatabases():
             raise DlexportException(ERR_INVALID_DATABASE)
 
-        database = self._secrets[db]
-        ip = database["ip"]
-        port = database["port"]
-        sid = database["sid"]
+        return psycopg.connect(
+            host=self._database_host,
+            port=self._database_port,
+            dbname=self._database_name,
+            user=self._database_user,
+            password=self._database_password,
+        )
 
-        # assume the following will succeed if the secrets file is not modified
-        dnsTns = cx_Oracle.makedsn(ip, port, sid)
-        return cx_Oracle.connect(database["username"], database["password"], dnsTns)
+    def _execute_query(self, db, query, params=None):
+        with self.connectToDb(db) as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(query, params)
+                yield from cursor
 
     def getDbCollections(self, db):
-        """
-        Returns a list of the given db's collections.
+        """Returns a list of the given db's collections.
         The inner list always has two elements, project_title and webapp_name.
         """
-        conn = self.connectToDb(db)
-        cursor = conn.cursor()
-        cursor.execute(COLLECTIONS_QUERY)
-        dbCollections = [[a, b] for a, b in cursor]
-        cursor.close()
-        conn.close()
-        return dbCollections
+        return [[a, b] for a, b in self._execute_query(db, COLLECTIONS_QUERY)]
 
     def getDatabases(self, includeCollections=False):
-        """
-        Returns a list of databases.
+        """Returns a list of databases.
         The returned list may include a list of the collections for each db.
         """
-        # Get list of keys in the secrets
-        db_list = [a for a in self._secrets]
+        db_list = [self._database_name]
         if includeCollections is True:
             # this will not throw an exception
             return [[a, self.getDbCollections(a)] for a in db_list]
@@ -266,18 +265,14 @@ class Dlexport:
             return db_list
 
     def isDb(self, db):
-        """
-        Checks if db exists.
-        """
+        """Checks if db exists."""
         if db in self.getDatabases():
             return True
         else:
             return False
 
     def isCollectionInDb(self, collection, db):
-        """
-        Check if collection_name is valid (exists in the given db).
-        """
+        """Check if collection_name is valid (exists in the given db)."""
         collections = [item[1] for item in self.getDbCollections(db)]
         if collection in collections:
             return True
@@ -285,9 +280,7 @@ class Dlexport:
             return False
 
     def getMetadata(self, db=None, collection=None, thumbnail=None, pageName=None):
-        """
-        Get the metadata and store in data member,
-        """
+        """Get the metadata and store in data member,"""
         # check for valid database name
         if db not in self.getDatabases():
             print("Error: invalid database name!")
@@ -297,12 +290,6 @@ class Dlexport:
         if not self.isCollectionInDb(collection, db):
             print("Error: invalid collection name!")
             raise DlexportException(ERR_INVALID_COLLECTION)
-
-        # connect to Oracle DB and execute query
-        conn = self.connectToDb(db)
-        cursor = conn.cursor()
-        cursor.prepare(METADATA_QUERY)
-        cursor.execute(None, collection=collection)
 
         # go thru query results, organize metadata in dictionary keyed by item_ark
         # keep track of all 2nd-tier keys
@@ -338,8 +325,7 @@ class Dlexport:
             parent_obj_type,
             file_name,
             file_location,
-        ) in cursor:
-
+        ) in self._execute_query(db, METADATA_QUERY, {"collection": collection}):
             nRows += 1
 
             # set a variable for metadata dictionary
@@ -371,9 +357,7 @@ class Dlexport:
                     "Item Status ID": str(statusid_fk),
                     "Item Status": status,
                     "Object Type": object_type,
-                    "Item Sequence": (
-                        "" if item_sequence is None else str(item_sequence)
-                    ),
+                    "Item Sequence": ("" if item_sequence is None else str(item_sequence)),
                     "Pagination": paginated_object_type,
                     "Thumbnail": "",
                 }
@@ -383,13 +367,8 @@ class Dlexport:
             # add paged value to work row if paginated material
             if metadata[item_ark]["Pagination"] == "Page":
                 if "viewingHint" not in csvHeaders:
-                    csvHeaders.extend(
-                        ("viewingHint", "Text direction", "Visibility", "IIIF Range")
-                    )
-                if (
-                    parent_ark in metadata
-                    and metadata[parent_ark]["Object Type"] == "Work"
-                ):
+                    csvHeaders.extend(("viewingHint", "Text direction", "Visibility", "IIIF Range"))
+                if parent_ark in metadata and metadata[parent_ark]["Object Type"] == "Work":
                     metadata[parent_ark]["viewingHint"] = "paged"
 
             if qualifier_label in (False, None) or len(qualifier_label) <= 0:
@@ -402,10 +381,7 @@ class Dlexport:
                 csvHeaders.append(inner_dict_key)
             # check if inner_dict_key already maps to a value
             if inner_dict_key in metadata[item_ark]:
-                if (
-                    text_value != None
-                    and text_value not in metadata[item_ark][inner_dict_key]
-                ):
+                if text_value != None and text_value not in metadata[item_ark][inner_dict_key]:
                     metadata[item_ark][inner_dict_key] = "{0}|~|{1}".format(
                         metadata[item_ark][inner_dict_key], text_value
                     )
@@ -480,13 +456,9 @@ class Dlexport:
                             thumbnail_choice = {
                                 "first-thumb": (file_list[0]),
                                 "second-thumb": (file_list[-1]),
-                                "third-thumb": (
-                                    file_list[random.randint(0, len(file_list) - 1)]
-                                ),
+                                "third-thumb": (file_list[random.randint(0, len(file_list) - 1)]),
                             }
-                            thumbnail_ark = findArk(
-                                metadata, thumbnail_choice[thumbnail]
-                            )
+                            thumbnail_ark = findArk(metadata, thumbnail_choice[thumbnail])
                             ark_url = "https://iiif.library.ucla.edu/iiif/2/" + str(
                                 urllib.parse.quote(thumbnail_ark, safe="")
                             )
@@ -495,9 +467,6 @@ class Dlexport:
                             nameChildPages(file_list, pageName, metadata, ark_prefix)
                         else:
                             pass
-        cursor.close()
-        conn.close()
-
         if nRows == 0:
             print('Error: collection "{}" has no items!'.format(collection))
             raise DlexportException(ERR_EMPTY_COLLECTION)
@@ -506,17 +475,13 @@ class Dlexport:
         self.metadata = metadata
 
     def toJson(self):
-        """
-        Returns JSON representation of the metadata.
-        """
+        """Returns JSON representation of the metadata."""
         # print JSON representation to stdout
         # TODO: check that self.metadata exists
         return dumps(self.metadata, sort_keys=True, indent=4, separators=(",", ": "))
 
     def toCsv(self):
-        """
-        Returns CSV representation of the metadata.
-        """
+        """Returns CSV representation of the metadata."""
         f = io.StringIO()
         csvWriter = csv.writer(f, delimiter=",", quotechar='"', quoting=csv.QUOTE_ALL)
 
@@ -549,11 +514,6 @@ class Dlexport:
             print("Error: invalid database name!")
             raise DlexportException(ERR_INVALID_DATABASE)
 
-        # connect to Oracle DB and execute query
-        conn = self.connectToDb(db)
-        cursor = conn.cursor()
-        cursor.prepare(EDITED_ITEMS_QUERY)
-        cursor.execute(None, start_date=start_date, end_date=end_date)
         edited_items = []
         csvHeaders = [
             "Item Created Date",
@@ -566,12 +526,13 @@ class Dlexport:
         ]
         nRows = 0
 
-        for item in cursor:
+        for item in self._execute_query(
+            db,
+            EDITED_ITEMS_QUERY,
+            {"start_date": start_date, "end_date": end_date},
+        ):
             edited_items.append(item)
             nRows += 1
-
-        cursor.close()
-        conn.close()
 
         if nRows == 0:
             print("Error: No items have been edited in the last 30 days")
@@ -581,9 +542,7 @@ class Dlexport:
         self.edited_items = edited_items
 
     def toEditedCsv(self):
-        """
-        Returns CSV representation of the metadata.
-        """
+        """Returns CSV representation of the metadata."""
         f = io.StringIO()
         csvWriter = csv.writer(f, delimiter=",", quotechar='"', quoting=csv.QUOTE_ALL)
 
@@ -601,12 +560,8 @@ if __name__ == "__main__":
     """
     try:
         # parse command line arguments
-        parser = argparse.ArgumentParser(
-            description="Export project metadata from DLCS."
-        )
-        parser.add_argument(
-            "-d", "--database", metavar="db", required=True, help="database to use"
-        )
+        parser = argparse.ArgumentParser(description="Export project metadata from DLCS.")
+        parser.add_argument("-d", "--database", metavar="db", required=True, help="database to use")
         parser.add_argument(
             "-c",
             "--collection",
@@ -644,12 +599,12 @@ if __name__ == "__main__":
 
         argsNamespace = parser.parse_args()
 
-        exporter = Dlexport("db-secrets.json")
+        exporter = Dlexport()
         exporter.getMetadata(
             argsNamespace.database,
             argsNamespace.collection,
-            argsNamespace.thumbnails,
-            argsNamespace.masters,
+            thumbnail="first-thumb",
+            pageName="page-number",
         )
 
         if not argsNamespace.quiet:
