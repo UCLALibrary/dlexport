@@ -216,6 +216,7 @@ __marimo__/
 backup
 csv
 *.pyc
+*.tar.gz
 
 # Elastic Beanstalk Files
 .elasticbeanstalk/*
