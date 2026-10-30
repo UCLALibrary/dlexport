@@ -214,7 +214,7 @@ __marimo__/
 *password*
 *secret*
 backup
-csv
+*.csv
 *.pyc
 *.tar.gz
 
