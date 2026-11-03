@@ -603,6 +603,14 @@ if __name__ == "__main__":
         exporter.getMetadata(
             argsNamespace.database,
             argsNamespace.collection,
+            # FIXME: CL args --thumbnails and --masters are boolean flags,
+            # but `getMetadata` seems to expect a string used as a dict key
+            # for selecting various options related to thumbnails and masters.
+            # This is not marked in the type signatures for the `getMetadata` method,
+            # and it is kludgy to begin with to select options this way.
+            # Deferring a broader fix for now, and opting to set valid defaults
+            # on the `thumbnail` and `pageName` parameters for `getMetadata`,
+            # so that the script can run and tests (or test stubs) can pass.
             thumbnail="first-thumb",
             pageName="page-number",
         )
