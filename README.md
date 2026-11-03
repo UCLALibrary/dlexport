@@ -1,14 +1,16 @@
-# Context
+# dlexport
+
+## Context
 
 `dlexport` is a CLI utility for exporting metadata from UCLA Library's digital collections database. It is intended to be used by software developers within the UCLA Library. It is not for general use.
 
-# Developer Information
+## Developer Information
 
-## Overview of environment
+### Overview of environment
 
 The development environment requires:
 * `git` (at least version 2)
-* `docker`(version 25+) and `docker compose` (version 2+)
+* `docker` (version 25+) and `docker compose` (version 2+)
 
 ### Dev container
 
@@ -21,62 +23,56 @@ When prompted by VS Code, click "Reopen in container".  This will (re)build the 
 (re)build a copy of that container, `vsc-dlexport-<long_hash>-uid`, install VS Code development tools & extensions within that container,
 and start the `docker compose` system.  VS Code will be connected to the Django container, with all code available for editing in that context.
 
-### Python Environment
+### Python environment
 
 This project uses `uv` (see [docs](https://docs.astral.sh/uv/)) for managing Python virtual environments and dependencies, including within the dev container.
 
-### Secrets
+### PostgreSQL database
 
-TODO: Set up secrets files for development, once PostgreSQL swap with Oracle is complete.
+The Compose stack includes a PostgreSQL database service. Local-only connection settings are saved in `.docker-compose_db.env`. This file is safe for version control as it only contains development credentials.
 
-# Running the program
+A production data snapshot can be loaded into the Postgres development database using the included import script. First, ask a teammate for a copy of the production database archive, then place the archive file in the project root and run the importer:
 
-TODO: Update the sections below as CLI is brought up-to-date with our current team practices.
-
-## Authentication
-
-So the application can access the database, open a SSH tunnel from your local machine according to step 1 in the Jdeveloper section of https://docs.library.ucla.edu/display/dlp/SSH+tunneling+to+access+DLCS+database+at+ITS, using port `9001` instead of `9000`.
-
-## CLI
-
-Keep the virtualenv running to use this utility at the command line.
-
-Show usage with:
-
-```Shell
-python3 dlexport.py -h
+```bash
+./docker_scripts/import_prod_db.sh pg_dlcs_archive-YYYY-MM-DD.tar.gz
 ```
 
-For example, to export metadata (including thumbnail image names and master image names) from the Aldous Huxley Collection in the production DLCS database to 'myFile.csv':
+Database archives contain production data; do not commit them to version control.
 
-```Shell
-python3 dlexport.py -t -m -d lit106 -c huxle > myFile.csv
+## Running the program
+
+From within the dev container, run the following commands using `uv` to interact with the application.
+
+Show usage:
+
+```bash
+uv run python dlexport.py -h
+```
+
+To export metadata from the Aldous Huxley Collection in the local database to 'myFile.csv', for example:
+
+```bash
+uv run python dlexport.py -d dlexport_db -c huxle > myFile.csv
 ```
 
 or, in long form:
 
-```Shell
-python3 dlexport.py --thumbnails --masters --database lit106 --collection huxle > myFile.csv
+```bash
+uv run python dlexport.py --database dlexport_db --collection huxle > myFile.csv
 ```
 
-## Cleanup
+### Testing
 
-To exit your virtual environment:
+Run unit tests with:
 
-```Shell
-deactivate
+```bash
+uv run python -m unittest
 ```
 
-To destroy it forever:
+### Running via Docker Compose from outside dev container
 
-```Shell
-rm -rf venv-dlexport
-```
+To run the program from outside the dev container using Docker Compose, simply append `docker compose exec dlexport` before the commands above. For example:
 
-## Test
-
-To run the automated tests (with virtualenv up and running):
-
-```Shell
-python3 dlexport-test.py -v
+```bash
+docker compose exec dlexport uv run python dlexport.py -h
 ```

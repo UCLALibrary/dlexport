@@ -214,8 +214,9 @@ __marimo__/
 *password*
 *secret*
 backup
-csv
+*.csv
 *.pyc
+*.tar.gz
 
 # Elastic Beanstalk Files
 .elasticbeanstalk/*
