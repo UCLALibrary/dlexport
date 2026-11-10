@@ -30,5 +30,6 @@ class DatabaseTests(unittest.TestCase):
         self.assertEqual(raised.exception.code, DLExportErrorCode.INVALID_DATABASE)
         self.assertEqual(str(raised.exception), "Invalid database name.")
 
+
 if __name__ == "__main__":
     unittest.main()
