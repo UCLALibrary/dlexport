@@ -20,8 +20,7 @@ dlexport = "dlexport:app"
 
 [dependency-groups]
 dev = [
-    "nodeenv>=1.11.0",
-    "pyright>=1.1.411",
+    "pyright[nodejs]>=1.1.411",
     "ruff>=0.15.20",
 ]
 
