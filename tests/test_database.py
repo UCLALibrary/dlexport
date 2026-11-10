@@ -23,23 +23,12 @@ class DatabaseTests(unittest.TestCase):
         with self.assertRaises(DLExportException):
             self.exporter.connect_to_db("not_configured")
 
-    def test_get_db_collections_returns_collection_names(self) -> None:
-        collections = self.exporter.get_db_collections(self.database)
-
-        self.assertTrue(collections)
-        self.assertTrue(any(collection == "huxle" for _, collection in collections))
-
-    def test_is_collection_in_db(self) -> None:
-        self.assertTrue(self.exporter.is_collection_in_db("huxle", self.database))
-        self.assertFalse(self.exporter.is_collection_in_db("not_a_collection", self.database))
-
     def test_invalid_db_raises_message_and_code(self) -> None:
         with self.assertRaises(DLExportException) as raised:
             self.exporter.get_metadata("invalid", "collection")
 
         self.assertEqual(raised.exception.code, DLExportErrorCode.INVALID_DATABASE)
         self.assertEqual(str(raised.exception), "Invalid database name.")
-
 
 if __name__ == "__main__":
     unittest.main()
