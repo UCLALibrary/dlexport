@@ -1,0 +1,42 @@
+name: Run CI Suite
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  check:
+    name: Lint, type-check, and test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+
+      # Same stack as local development: the dev image plus the Postgres service.
+      # Matching the container user's UID to the runner keeps the bind mount writable.
+      - name: Start Compose stack
+        run: |
+          export APP_USER_UID=$(id -u)
+          docker compose up -d --build --wait
+
+      # Each check runs even if an earlier one fails, so one run reports every problem.
+      - name: Ruff lint
+        run: docker compose exec -T dlexport ruff check --output-format=github .
+
+      - name: Ruff format
+        if: ${{ !cancelled() }}
+        run: docker compose exec -T dlexport ruff format --check .
+
+      - name: Pyright
+        if: ${{ !cancelled() }}
+        run: docker compose exec -T dlexport pyright
+
+      - name: Unit tests
+        if: ${{ !cancelled() }}
+        run: docker compose exec -T dlexport python -m unittest
+
+      - name: Compose logs
+        if: ${{ failure() }}
+        run: docker compose logs
