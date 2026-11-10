@@ -182,7 +182,8 @@ def _get_total(mask: str) -> int:
         mask: NOID template mask.
 
     Returns:
-        The total number of possible values for the given mask, or NOLIMIT if the mask is variable-length.
+        The total number of possible values for the given mask,
+        or NOLIMIT if the mask is variable-length.
 
     Raises:
         InvalidTemplateError: If the mask contains invalid characters.
@@ -201,7 +202,7 @@ def _get_total(mask: str) -> int:
 
 def _check_digit(value: str) -> str:
     """Calculate the NOID check character for a value.
-    
+
     Args:
         value: The value for which to calculate the check character.
 
