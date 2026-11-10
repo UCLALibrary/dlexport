@@ -1,30 +1,26 @@
-"""dlexport.py
+"""Export project metadata from DLCS to CSV or JSON format."""
 
-Export project metadata from DLCS to CSV or JSON format.
-"""
-
-import argparse
 import csv
 import io
 import os
 import random
 import re
 import urllib.parse
+from datetime import date, datetime
+from enum import IntEnum, StrEnum
 from json import dumps
+from pathlib import Path
+from typing import Any, Iterator, LiteralString, Mapping
 
 import psycopg
+import typer
+from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from noid import mint
 
-SUCCESS = 0
-ERR_INVALID_DATABASE = 1
-ERR_INVALID_COLLECTION = 2
-ERR_EMPTY_COLLECTION = 3
-ERR_INVALID_FILENAME = 4
-ERR_UNKNOWN = 5
-ERR_INVALID_QUERY = 6
-# TODO: change codes to strings
-
+####################
+# region Queries
+####################
 METADATA_QUERY = """
 SELECT 
     c.project_title, 
@@ -44,7 +40,8 @@ SELECT
         ELSE ''
     END AS parent_obj_type, 
     cf.file_name, cf.file_location
---a.desc_term_label, a.qualifier_label, parent_join.item_ark as parent_ark, b.item_ark, v_ot.object_type, a.text_value as tv 
+-- a.desc_term_label, a.qualifier_label, parent_join.item_ark as parent_ark,
+-- b.item_ark, v_ot.object_type, a.text_value as tv
 FROM 
     (SELECT 
         dv.divid_fk AS item_id, 
@@ -157,57 +154,113 @@ WHERE projects.projectid_pk = project_items.projectid_fk
     AND project_items.last_edit_date <= CAST(%(end_date)s AS DATE)
 ORDER BY last_edit_date DESC
 """
+# endregion Queries
 
 
-def clean(dirty):
-    """Returns a cleaned string, stripped of all newlines and carriage returns."""
+####################
+# region Helpers
+def clean(dirty: str) -> str:
+    """Strip newline and carriage-return characters from a string."""
     return dirty.replace("\r", "").replace("\n", "")
 
 
-def findArk(metadata_dict, file_name):
-    for item_ark in metadata_dict.keys():
-        if (
-            metadata_dict[item_ark]["Object Type"] != "Work"
-            and metadata_dict[item_ark]["Object Type"] != "Collection"
-        ):
-            if "File Name" in metadata_dict[item_ark]:
-                if metadata_dict[item_ark]["File Name"] == file_name:
-                    return item_ark
+def find_ark(metadata_dict: Mapping[str, Mapping[str, Any]], file_name: str) -> str | None:
+    """Find the item ARK for a matching non-Work, non-Collection file.
+
+    Args:
+        metadata_dict: Metadata indexed by item ARK.
+        file_name: File name to find.
+
+    Returns:
+        The matching item ARK, or None when no item matches.
+    """
+    for item_ark, item in metadata_dict.items():
+        if item.get("Object Type") not in ("Work", "Collection"):
+            if item.get("File Name") == file_name:
+                return item_ark
+    return None
 
 
-def nameChildPages(file_list, pageName, metadata_dict, parent):
-    # create dict for pageName selection and values
-    pageName_dict = {
+def name_child_pages(
+    file_list: list[str],
+    page_name: str,
+    metadata_dict: dict[str, dict[str, Any]],
+    parent: str,
+) -> dict[str, dict[str, Any]]:
+    """Set titles for the two pages belonging to a parent item.
+
+    Args:
+        file_list: Files associated with the parent.
+        page_name: Naming convention to use for the two pages.
+        metadata_dict: Metadata indexed by item ARK.
+        parent: Parent item ARK.
+
+    Returns:
+        The updated metadata dictionary.
+    """
+    page_names = {
         "page-number": ["Page 1", "Page 2"],
         "front-back": ["Front", "Back"],
         "recto-verso": ["Recto", "Verso"],
     }
     if len(file_list) == 2:
-        for item_ark in metadata_dict.keys():
-            if metadata_dict[item_ark]["Parent ARK"] == parent:
-                metadata_dict[item_ark]["Title"] = "Title"
-                if metadata_dict[item_ark]["Item Sequence"] == "1":
-                    metadata_dict[item_ark]["Title"] = pageName_dict[pageName][0]
-                elif metadata_dict[item_ark]["Item Sequence"] == "2":
-                    metadata_dict[item_ark]["Title"] = pageName_dict[pageName][1]
+        for item in metadata_dict.values():
+            if item.get("Parent ARK") == parent:
+                item["Title"] = "Title"
+                if item.get("Item Sequence") == "1":
+                    item["Title"] = page_names[page_name][0]
+                elif item.get("Item Sequence") == "2":
+                    item["Title"] = page_names[page_name][1]
     return metadata_dict
 
 
-class DlexportException(Exception):
-    """Throw if anything in the Dlexport class goes wrong."""
-
-    def __init__(self, errorCode):
-        self.err = errorCode
-
-    def __str__(self):
-        return repr(self.err)
+# endregion Helpers
 
 
-class Dlexport:
+####################
+# region Main DLExport class and exceptions
+####################
+class DLExportErrorCode(IntEnum):
+    """Stable process exit codes for expected export errors."""
+
+    SUCCESS = 0
+    INVALID_DATABASE = 1
+    INVALID_COLLECTION = 2
+    EMPTY_COLLECTION = 3
+    INVALID_FILENAME = 4
+    UNKNOWN = 5
+    INVALID_QUERY = 6
+
+
+ERROR_MESSAGES = {
+    DLExportErrorCode.INVALID_DATABASE: "Invalid database name.",
+    DLExportErrorCode.INVALID_COLLECTION: "Invalid collection name.",
+    DLExportErrorCode.EMPTY_COLLECTION: "The collection contains no items.",
+    DLExportErrorCode.INVALID_FILENAME: "Invalid output file.",
+    DLExportErrorCode.UNKNOWN: "An unexpected export error occurred.",
+    DLExportErrorCode.INVALID_QUERY: "The database query failed.",
+}
+
+
+class DLExportException(Exception):
+    """Represent a user-facing export error and its stable exit code."""
+
+    def __init__(self, code: DLExportErrorCode, message: str | None = None) -> None:
+        """Create an export error with a stable code and readable message."""
+        self.code = code
+        super().__init__(
+            message or ERROR_MESSAGES.get(code, ERROR_MESSAGES[DLExportErrorCode.UNKNOWN])
+        )
+
+
+class DLExport:
     """Exporter class."""
 
-    def __init__(self):
-        """Stores PostgreSQL connection settings from the environment."""
+    def __init__(self) -> None:
+        """Store PostgreSQL connection settings from the environment."""
+        self.csv_headers: list[str] = []
+        self.metadata: dict[str, dict[str, Any]] = {}
+        self.edited_items: list[tuple[Any, ...]] = []
         required_settings = (
             "DLEXPORT_DB_HOST",
             "DLEXPORT_DB_PORT",
@@ -228,10 +281,20 @@ class Dlexport:
         self._database_user = os.environ["DLEXPORT_DB_USER"]
         self._database_password = os.environ["DLEXPORT_DB_PASSWORD"]
 
-    def connectToDb(self, db):
-        """Opens and returns a database connection handle."""
-        if db not in self.getDatabases():
-            raise DlexportException(ERR_INVALID_DATABASE)
+    def connect_to_db(self, db: str) -> psycopg.Connection[Any]:
+        """Open a connection to the configured PostgreSQL database.
+
+        Args:
+            db: Database name to connect to.
+
+        Returns:
+            An open PostgreSQL connection.
+
+        Raises:
+            DLExportException: If the requested database is not configured.
+        """
+        if db not in self.get_databases():
+            raise DLExportException(DLExportErrorCode.INVALID_DATABASE)
 
         return psycopg.connect(
             host=self._database_host,
@@ -241,61 +304,92 @@ class Dlexport:
             password=self._database_password,
         )
 
-    def _execute_query(self, db, query, params=None):
-        with self.connectToDb(db) as conn:
+    def _execute_query(
+        self, db: str, query: LiteralString, params: Mapping[str, Any] | None = None
+    ) -> Iterator[tuple[Any, ...]]:
+        """Execute a query and yield its result rows."""
+        with self.connect_to_db(db) as conn:
             with conn.cursor() as cursor:
                 cursor.execute(query, params)
                 yield from cursor
 
-    def getDbCollections(self, db):
-        """Returns a list of the given db's collections.
-        The inner list always has two elements, project_title and webapp_name.
+    def get_db_collections(self, db: str) -> list[list[Any]]:
+        """Return the configured database's project titles and collection names.
+
+        Args:
+            db: Database name to query.
+
+        Returns:
+            Each row contains a project title and its collection name.
         """
         return [[a, b] for a, b in self._execute_query(db, COLLECTIONS_QUERY)]
 
-    def getDatabases(self, includeCollections=False):
-        """Returns a list of databases.
-        The returned list may include a list of the collections for each db.
+    def get_databases(self, include_collections: bool = False) -> list[Any]:
+        """Return the configured database, optionally with its collections.
+
+        Args:
+            include_collections: Include collection rows alongside the database name.
+
+        Returns:
+            The configured database name, optionally paired with collection rows.
         """
         db_list = [self._database_name]
-        if includeCollections is True:
-            # this will not throw an exception
-            return [[a, self.getDbCollections(a)] for a in db_list]
-        else:
-            return db_list
+        if include_collections:
+            return [[name, self.get_db_collections(name)] for name in db_list]
+        return db_list
 
-    def isDb(self, db):
-        """Checks if db exists."""
-        if db in self.getDatabases():
-            return True
-        else:
-            return False
+    def is_db(self, db: str) -> bool:
+        """Check whether a database name is configured.
 
-    def isCollectionInDb(self, collection, db):
-        """Check if collection_name is valid (exists in the given db)."""
-        collections = [item[1] for item in self.getDbCollections(db)]
-        if collection in collections:
-            return True
-        else:
-            return False
+        Args:
+            db: Database name to check.
 
-    def getMetadata(self, db=None, collection=None, thumbnail=None, pageName=None):
-        """Get the metadata and store in data member,"""
-        # check for valid database name
-        if db not in self.getDatabases():
-            print("Error: invalid database name!")
-            raise DlexportException(ERR_INVALID_DATABASE)
+        Returns:
+            True when the name matches the configured database.
+        """
+        return db in self.get_databases()
 
-        # check for valid collection to prevent SQL injection
-        if not self.isCollectionInDb(collection, db):
-            print("Error: invalid collection name!")
-            raise DlexportException(ERR_INVALID_COLLECTION)
+    def is_collection_in_db(self, collection: str, db: str) -> bool:
+        """Check whether a collection exists in a database.
+
+        Args:
+            collection: Collection name to check.
+            db: Database name to query.
+
+        Returns:
+            True when the collection exists in the database.
+        """
+        collections = [item[1] for item in self.get_db_collections(db)]
+        return collection in collections
+
+    def get_metadata(
+        self,
+        db: str | None = None,
+        collection: str | None = None,
+        thumbnail: str = "first-thumb",
+        page_name: str = "page-number",
+    ) -> None:
+        """Load and organize metadata for a collection.
+
+        Args:
+            db: Database name to query.
+            collection: Collection name to export.
+            thumbnail: File selection rule for generated thumbnails.
+            page_name: Page title convention for two-file works.
+
+        Raises:
+            DLExportException: If the database or collection is invalid or empty.
+        """
+        if db is None or db not in self.get_databases():
+            raise DLExportException(DLExportErrorCode.INVALID_DATABASE)
+        if collection is None or not self.is_collection_in_db(collection, db):
+            raise DLExportException(DLExportErrorCode.INVALID_COLLECTION)
 
         # go thru query results, organize metadata in dictionary keyed by item_ark
         # keep track of all 2nd-tier keys
         # count number of rows in result
-        metadata = {}
-        csvHeaders = [
+        metadata: dict[str, dict[str, Any]] = {}
+        csv_headers = [
             "Project Name",
             "Item ARK",
             "Parent ARK",
@@ -308,7 +402,7 @@ class Dlexport:
             "Delete in Title",
             "Thumbnail",
         ]
-        nRows = 0
+        row_count = 0
 
         for (
             project_title,
@@ -317,16 +411,16 @@ class Dlexport:
             statusid_fk,
             status,
             desc_term_label,
-            core_desc_term,
+            _core_desc_term,
             qualifier_label,
             text_value,
             parent_ark,
             object_type,
             parent_obj_type,
-            file_name,
+            _file_name,
             file_location,
         ) in self._execute_query(db, METADATA_QUERY, {"collection": collection}):
-            nRows += 1
+            row_count += 1
 
             # set a variable for metadata dictionary
             # will only have a value if the object type in DLCS is Page
@@ -366,8 +460,10 @@ class Dlexport:
             # if so, add four new fields for paginated materials
             # add paged value to work row if paginated material
             if metadata[item_ark]["Pagination"] == "Page":
-                if "viewingHint" not in csvHeaders:
-                    csvHeaders.extend(("viewingHint", "Text direction", "Visibility", "IIIF Range"))
+                if "viewingHint" not in csv_headers:
+                    csv_headers.extend(
+                        ("viewingHint", "Text direction", "Visibility", "IIIF Range")
+                    )
                 if parent_ark in metadata and metadata[parent_ark]["Object Type"] == "Work":
                     metadata[parent_ark]["viewingHint"] = "paged"
 
@@ -377,8 +473,8 @@ class Dlexport:
                 inner_dict_key = "{0}.{1}".format(desc_term_label, qualifier_label)
 
             # check if we've encountered a new header field
-            if inner_dict_key not in csvHeaders:
-                csvHeaders.append(inner_dict_key)
+            if inner_dict_key not in csv_headers:
+                csv_headers.append(inner_dict_key)
             # check if inner_dict_key already maps to a value
             if inner_dict_key in metadata[item_ark]:
                 if text_value != None and text_value not in metadata[item_ark][inner_dict_key]:
@@ -403,8 +499,8 @@ class Dlexport:
             else:
                 pass
             if file_location:
-                indexOfdigi = len("http://digilib.library.ucla.edu/")
-                file_location_str = file_location[indexOfdigi:]
+                index_of_digi = len("http://digilib.library.ucla.edu/")
+                file_location_str = file_location[index_of_digi:]
                 if "File Name" not in metadata[item_ark]:
                     metadata[item_ark]["File Name"] = file_location_str
                 elif "File Name" in metadata[item_ark]:
@@ -420,14 +516,14 @@ class Dlexport:
             ark_prefix = metadata[item_ark]["Item ARK"]
             parent_ark = metadata[item_ark]["Parent ARK"]
             type_object = metadata[item_ark]["Object Type"]
+            project_title = metadata[item_ark]["Project Name"]
             if "File Name" in metadata[item_ark]:
                 if "|~|" in metadata[item_ark]["File Name"]:
                     file_list = metadata[item_ark]["File Name"].split("|~|")
                     if file_list is not None:
                         file_list.sort()
                         metadata[item_ark]["File Name"] = ""
-                        for f in file_list:
-                            sequence = int(file_list.index(f)) + 1
+                        for sequence, file_name in enumerate(file_list, start=1):
                             noid_item_ark = mint(
                                 scheme=str(ark_prefix[:11]), naa=str(ark_prefix[11:])
                             )
@@ -436,9 +532,9 @@ class Dlexport:
                                     "Item ARK": noid_item_ark,
                                     "Object Type": "Page",
                                     "Parent ARK": ark_prefix,
-                                    "Title": "Page {}".format(str(sequence)),
+                                    "Title": f"Page {sequence}",
                                     "Project Name": project_title,
-                                    "File Name": f,
+                                    "File Name": file_name,
                                     "Item Sequence": str(sequence),
                                 }
                             # if childworks are being split, keep original metadata
@@ -456,66 +552,63 @@ class Dlexport:
                             thumbnail_choice = {
                                 "first-thumb": (file_list[0]),
                                 "second-thumb": (file_list[-1]),
-                                "third-thumb": (file_list[random.randint(0, len(file_list) - 1)]),
+                                "third-thumb": file_list[random.randint(0, len(file_list) - 1)],
                             }
-                            thumbnail_ark = findArk(metadata, thumbnail_choice[thumbnail])
+                            thumbnail_ark = find_ark(metadata, thumbnail_choice[thumbnail])
+                            if thumbnail_ark is None:
+                                raise DLExportException(
+                                    DLExportErrorCode.INVALID_FILENAME,
+                                    "Could not find the selected thumbnail file.",
+                                )
                             ark_url = "https://iiif.library.ucla.edu/iiif/2/" + str(
                                 urllib.parse.quote(thumbnail_ark, safe="")
                             )
                             metadata[item_ark]["Thumbnail"] = ark_url
                         if len(file_list) == 2:
-                            nameChildPages(file_list, pageName, metadata, ark_prefix)
-                        else:
-                            pass
-        if nRows == 0:
-            print('Error: collection "{}" has no items!'.format(collection))
-            raise DlexportException(ERR_EMPTY_COLLECTION)
+                            name_child_pages(file_list, page_name, metadata, ark_prefix)
+        if row_count == 0:
+            raise DLExportException(
+                DLExportErrorCode.EMPTY_COLLECTION,
+                f'Collection "{collection}" has no items.',
+            )
 
-        self.csvHeaders = csvHeaders
+        self.csv_headers = csv_headers
         self.metadata = metadata
 
-    def toJson(self):
-        """Returns JSON representation of the metadata."""
-        # print JSON representation to stdout
-        # TODO: check that self.metadata exists
-        return dumps(self.metadata, sort_keys=True, indent=4, separators=(",", ": "))
+    def to_json(self) -> str:
+        """Return a JSON representation of the loaded metadata."""
+        return dumps(self.metadata, sort_keys=True, indent=4)
 
-    def toCsv(self):
-        """Returns CSV representation of the metadata."""
+    def to_csv(self) -> str:
+        """Return a CSV representation of the loaded metadata."""
         f = io.StringIO()
-        csvWriter = csv.writer(f, delimiter=",", quotechar='"', quoting=csv.QUOTE_ALL)
+        csv_writer = csv.writer(f, delimiter=",", quotechar='"', quoting=csv.QUOTE_ALL)
 
-        # write header
-        csvWriter.writerow([clean(i) for i in self.csvHeaders])
-
-        # write a line for each item in the collection
-        for k, v in sorted(self.metadata.items(), key=lambda x: x[0]):
-            try:
-                cleanedValuesList = [
-                    (
-                        clean(v[i])
-                        # check csvHeaders to determine if value should be
-                        # included
-                        if i in v and v[i] is not None
-                        else ""
-                    )
-                    for i in self.csvHeaders
-                ]
-            except AttributeError as e:
-                print(i, v[i])
-                raise
-            csvWriter.writerow(cleanedValuesList)
+        csv_writer.writerow([clean(header) for header in self.csv_headers])
+        for _, item in sorted(self.metadata.items(), key=lambda entry: entry[0]):
+            row = [
+                clean(str(item[header])) if header in item and item[header] is not None else ""
+                for header in self.csv_headers
+            ]
+            csv_writer.writerow(row)
         return f.getvalue()
 
-    def getEditedItems(self, db=None, start_date=None, end_date=None):
+    def get_edited_items(self, db: str, start_date: date, end_date: date) -> None:
+        """Load items edited during an inclusive date range.
 
-        # check for valid database name
-        if db not in self.getDatabases():
-            print("Error: invalid database name!")
-            raise DlexportException(ERR_INVALID_DATABASE)
+        Args:
+            db: Database name to query.
+            start_date: First edit date to include.
+            end_date: Last edit date to include.
 
-        edited_items = []
-        csvHeaders = [
+        Raises:
+            DLExportException: If the database is invalid or no items match.
+        """
+        if db not in self.get_databases():
+            raise DLExportException(DLExportErrorCode.INVALID_DATABASE)
+
+        edited_items: list[tuple[Any, ...]] = []
+        csv_headers = [
             "Item Created Date",
             "Last Edit Date",
             "Item Ark",
@@ -524,101 +617,132 @@ class Dlexport:
             "Created By",
             "Project Title",
         ]
-        nRows = 0
-
         for item in self._execute_query(
             db,
             EDITED_ITEMS_QUERY,
             {"start_date": start_date, "end_date": end_date},
         ):
             edited_items.append(item)
-            nRows += 1
 
-        if nRows == 0:
-            print("Error: No items have been edited in the last 30 days")
-            raise DlexportException(ERR_EMPTY_COLLECTION)
+        if not edited_items:
+            raise DLExportException(
+                DLExportErrorCode.EMPTY_COLLECTION,
+                "No items were edited during the requested date range.",
+            )
 
-        self.csvHeaders = csvHeaders
+        self.csv_headers = csv_headers
         self.edited_items = edited_items
 
-    def toEditedCsv(self):
-        """Returns CSV representation of the metadata."""
+    def to_edited_csv(self) -> str:
+        """Return a CSV representation of the loaded edited items."""
         f = io.StringIO()
-        csvWriter = csv.writer(f, delimiter=",", quotechar='"', quoting=csv.QUOTE_ALL)
+        csv_writer = csv.writer(f, delimiter=",", quotechar='"', quoting=csv.QUOTE_ALL)
 
-        # write header
-        csvWriter.writerow([clean(i) for i in self.csvHeaders])
-        # write a line for each item in the collection
+        csv_writer.writerow([clean(header) for header in self.csv_headers])
         for item in self.edited_items:
-            csvWriter.writerow(item)
+            csv_writer.writerow(item)
         return f.getvalue()
+
+    def to_edited_json(self) -> str:
+        """Return a JSON representation of the loaded edited items."""
+        rows = [dict(zip(self.csv_headers, item, strict=True)) for item in self.edited_items]
+        return dumps(rows, sort_keys=True, indent=4, default=str)
+
+
+# endregion Main DLExport class and exceptions
+
+
+####################
+# region CLI
+####################
+class OutputFormat(StrEnum):
+    """Supported export formats."""
+
+    CSV = "csv"
+    JSON = "json"
+
+
+app = typer.Typer(
+    name="dlexport",
+    help="Export metadata from UCLA's Digital Library collections.",
+    no_args_is_help=True,
+)
+
+
+def _write_output(content: str, output_path: Path | None) -> None:
+    """Write content to a file or standard output, if output_path is None."""
+    if output_path is None:
+        typer.echo(content, nl=False)
+        return
+    try:
+        output_path.write_text(content, encoding="utf-8")
+    except OSError as error:
+        raise DLExportException(
+            DLExportErrorCode.INVALID_FILENAME,
+            f"Could not write output to {output_path}: {error}",
+        ) from error
+
+
+@app.command()
+def main(
+    database: str = typer.Option(..., "--database", "-d", help="Database to query."),
+    collection: str = typer.Option(..., "--collection", "-c", help="Collection to export."),
+    # Typer uses OutputFormat enum to display available choices.
+    output_format: OutputFormat = typer.Option(
+        OutputFormat.CSV,
+        "--format",
+        "-f",
+        help="Desired output format.",
+    ),
+    output_path: Path | None = typer.Option(
+        None,
+        "--output-path",
+        "-o",
+        help="Output file path. Defaults to `output/dlexport_TIMESTAMP.FORMAT`.",
+    ),
+) -> None:
+    """Export a collection's metadata."""
+    # Construct default output path if none provided.
+    if output_path is None:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S%f")
+        output_path = (
+            Path("output")  # default to writing to `output/`
+            / f"dlexport_{timestamp}.{output_format.value}"
+        )
+
+    try:
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("{task.description}"),
+            transient=True,
+        ) as progress:
+            progress.add_task(description="Exporting metadata...", total=None)
+            exporter = DLExport()
+            exporter.get_metadata(database, collection)
+            output = exporter.to_json() if output_format is OutputFormat.JSON else exporter.to_csv()
+
+            if output_path:
+                try:
+                    output_path.parent.mkdir(parents=True, exist_ok=True)
+                except OSError as error:
+                    raise DLExportException(
+                        DLExportErrorCode.INVALID_FILENAME,
+                        f"Could not create output directory {output_path.parent}: {error}",
+                    ) from error
+
+            _write_output(output, output_path)
+        progress.console.print(f"Metadata exported to {output_path}")
+
+    except DLExportException as error:
+        typer.echo(str(error), err=True)
+        raise typer.Exit(code=int(error.code)) from error
+
+    except psycopg.Error as error:
+        message = DLExportException(DLExportErrorCode.INVALID_QUERY, "The database query failed.")
+        typer.echo(str(message), err=True)
+        raise typer.Exit(code=int(message.code)) from error
 
 
 if __name__ == "__main__":
-    """
-    Main routine.
-    """
-    try:
-        # parse command line arguments
-        parser = argparse.ArgumentParser(description="Export project metadata from DLCS.")
-        parser.add_argument("-d", "--database", metavar="db", required=True, help="database to use")
-        parser.add_argument(
-            "-c",
-            "--collection",
-            metavar="appname",
-            required=True,
-            help="digital collection to extract metadata from",
-        )
-        parser.add_argument(
-            "-q",
-            "--quiet",
-            default=False,
-            action="store_true",
-            required=False,
-            help="suppress all standard output, except for error mesages",
-        )
-        parser.add_argument(
-            "-t",
-            "--thumbnails",
-            default=False,
-            action="store_true",
-            required=False,
-            help="include thumbnail file names in the output",
-        )
-        parser.add_argument(
-            "-m",
-            "--masters",
-            default=False,
-            action="store_true",
-            required=False,
-            help="include master file names in the output",
-        )
-
-        # TODO: add args to choose btw json, csv, and xml
-        # TODO: arg to choose char encoding (UTF-8, UTF-16, etc.)
-
-        argsNamespace = parser.parse_args()
-
-        exporter = Dlexport()
-        exporter.getMetadata(
-            argsNamespace.database,
-            argsNamespace.collection,
-            # FIXME: CL args --thumbnails and --masters are boolean flags,
-            # but `getMetadata` seems to expect a string used as a dict key
-            # for selecting various options related to thumbnails and masters.
-            # This is not marked in the type signatures for the `getMetadata` method,
-            # and it is kludgy to begin with to select options this way.
-            # Deferring a broader fix for now, and opting to set valid defaults
-            # on the `thumbnail` and `pageName` parameters for `getMetadata`,
-            # so that the script can run and tests (or test stubs) can pass.
-            thumbnail="first-thumb",
-            pageName="page-number",
-        )
-
-        if not argsNamespace.quiet:
-            # TODO: add switch on output formats (json, xml, etc.)
-            print(exporter.toCsv())
-        exit(SUCCESS)
-
-    except DlexportException as e:
-        exit(e.err)
+    main()
+# endregion CLI

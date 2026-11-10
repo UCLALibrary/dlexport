@@ -4,75 +4,77 @@
 
 `dlexport` is a CLI utility for exporting metadata from UCLA Library's digital collections database. It is intended to be used by software developers within the UCLA Library. It is not for general use.
 
-## Developer Information
+## Development setup
 
-### Overview of environment
+The project requires Python 3.13, `uv`, Git, Docker 25 or later, and Docker Compose v2. The supplied
+dev container provides Python and `uv`, and is the recommended way to work on the project.
 
-The development environment requires:
-* `git` (at least version 2)
-* `docker` (version 25+) and `docker compose` (version 2+)
-
-### Dev container
-
-This project comes with a basic dev container definition, in `.devcontainer/devcontainer.json`. It's known to work with VS Code,
-and may work with other IDEs like PyCharm.  For VS Code, it also installs the following extensions:
-- Python (which includes our type checker, pyright, as part of the pylance language server)
-- ruff (formatter and linter)
-
-When prompted by VS Code, click "Reopen in container".  This will (re)build the container, `dlexport`. It will also
-(re)build a copy of that container, `vsc-dlexport-<long_hash>-uid`, install VS Code development tools & extensions within that container,
-and start the `docker compose` system.  VS Code will be connected to the Django container, with all code available for editing in that context.
-
-### Python environment
-
-This project uses `uv` (see [docs](https://docs.astral.sh/uv/)) for managing Python virtual environments and dependencies, including within the dev container.
+In VS Code, open the project and choose **Reopen in Container** when prompted. The dev container starts
+the `dlexport` development service and its PostgreSQL service. The container configuration includes
+the Python and Ruff VS Code extensions. The project uses [`uv`](https://docs.astral.sh/uv/) to manage
+dependencies and its virtual environment.
 
 ### PostgreSQL database
 
-The Compose stack includes a PostgreSQL database service. Local-only connection settings are saved in `.docker-compose_db.env`. This file is safe for version control as it only contains development credentials.
+The Compose stack includes a PostgreSQL database service. Local connection settings are in
+`.docker-compose_db.env`; its credentials are for development only.
 
-A production data snapshot can be loaded into the Postgres development database using the included import script. First, ask a teammate for a copy of the production database archive, then place the archive file in the project root and run the importer:
+To load data into the development database, first start the Compose stack, then ask a teammate for a
+production database archive and place it in the project root. Run the importer with the TAR archive name:
 
 ```bash
 ./docker_scripts/import_prod_db.sh pg_dlcs_archive-YYYY-MM-DD.tar.gz
 ```
 
-Database archives contain production data; do not commit them to version control.
+The TAR archive contains production data; do not commit it to version control.
 
-## Running the program
+## Usage
 
-From within the dev container, run the following commands using `uv` to interact with the application.
+Run commands from the project root, preferably within the dev container.
 
-Show usage:
-
-```bash
-uv run python dlexport.py -h
-```
-
-To export metadata from the Aldous Huxley Collection in the local database to 'myFile.csv', for example:
+Show help:
 
 ```bash
-uv run python dlexport.py -d dlexport_db -c huxle > myFile.csv
+uv run dlexport --help
 ```
 
-or, in long form:
+Export the Aldous Huxley Collection (`huxle`) to CSV:
 
 ```bash
-uv run python dlexport.py --database dlexport_db --collection huxle > myFile.csv
+uv run dlexport --database dlexport_db --collection huxle --format csv --output-path myFile.csv
 ```
+
+Use `--format json` for JSON output. The format defaults to CSV. The short options are:
+
+  - `-d` for `--database`
+  - `-c` for `--collection`
+  - `-f` for `--format`
+  - `-o` for `--output-path`
+
+Short form:
+
+```bash
+uv run dlexport -d dlexport_db -c huxle -f json -o huxle.json
+```
+
+If `--output-path` is omitted, the export is written to `output/dlexport_TIMESTAMP.FORMAT`. The output directory is created if needed.
 
 ### Testing
 
-Run unit tests with:
+Run the test suite with:
 
 ```bash
 uv run python -m unittest
 ```
 
-### Running via Docker Compose from outside dev container
+Database integration tests use the local Compose database and expect it to contain the `huxle`
+collection. They are skipped when the database host and name environment variables are not set.
 
-To run the program from outside the dev container using Docker Compose, simply append `docker compose exec dlexport` before the commands above. For example:
+### Running from outside the dev container
+
+Use `docker compose exec dlexport` to run a command in the development container:
 
 ```bash
-docker compose exec dlexport uv run python dlexport.py -h
+docker compose exec dlexport uv run dlexport --help
+docker compose exec dlexport uv run dlexport -d dlexport_db -c huxle
 ```
