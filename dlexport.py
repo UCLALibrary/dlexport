@@ -577,7 +577,7 @@ class DLExport:
 
     def to_json(self) -> str:
         """Return a JSON representation of the loaded metadata."""
-        return dumps(list(self.metadata.values()), sort_keys=True, indent=4)
+        return dumps(self.metadata, sort_keys=True, indent=4)
 
     def to_csv(self) -> str:
         """Return a CSV representation of the loaded metadata."""
