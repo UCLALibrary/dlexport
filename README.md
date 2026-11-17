@@ -57,7 +57,22 @@ Short form:
 uv run dlexport -d dlexport_db -c huxle -f json -o huxle.json
 ```
 
-If `--output-path` is omitted, the export is written to `output/dlexport_TIMESTAMP.FORMAT`. The output directory is created if needed.
+Any sub-folders in the specified output path will be created automatically.
+
+If `--output-path` is omitted, the export is written to `stdout`,
+allowing the output to be redirected or piped as needed. E.g., 
+
+```bash
+# Redirect CSV output to a file
+uv run dlexport -d dlexport_db -c huxle -f csv > huxle.csv
+```
+
+or, from an environment with `jq` installed
+
+```bash
+# Pipe JSON output to `jq` for processing (example gets first item in output JSON array)
+docker compose exec dlexport uv run dlexport -d dlexport_db -c huxle -f json | jq '.[0]'
+```
 
 ### Testing
 

@@ -6,7 +6,7 @@ import os
 import random
 import re
 import urllib.parse
-from datetime import date, datetime
+from datetime import date
 from enum import IntEnum, StrEnum
 from json import dumps
 from pathlib import Path
@@ -577,7 +577,7 @@ class DLExport:
 
     def to_json(self) -> str:
         """Return a JSON representation of the loaded metadata."""
-        return dumps(self.metadata, sort_keys=True, indent=4)
+        return dumps(list(self.metadata.values()), sort_keys=True, indent=4)
 
     def to_csv(self) -> str:
         """Return a CSV representation of the loaded metadata."""
@@ -698,18 +698,10 @@ def main(
         None,
         "--output-path",
         "-o",
-        help="Output file path. Defaults to `output/dlexport_TIMESTAMP.FORMAT`.",
+        help="Output file path. Output defaults to `stdout` if not provided.",
     ),
 ) -> None:
     """Export a collection's metadata."""
-    # Construct default output path if none provided.
-    if output_path is None:
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S%f")
-        output_path = (
-            Path("output")  # default to writing to `output/`
-            / f"dlexport_{timestamp}.{output_format.value}"
-        )
-
     try:
         with Progress(
             SpinnerColumn(),
@@ -731,7 +723,8 @@ def main(
                     ) from error
 
             _write_output(output, output_path)
-        progress.console.print(f"Metadata exported to {output_path}")
+        if output_path:
+            progress.console.print(f"Metadata exported to {output_path}")
 
     except DLExportException as error:
         typer.echo(str(error), err=True)
