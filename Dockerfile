@@ -40,10 +40,10 @@ RUN --mount=type=cache,target=/home/app_user/.cache/uv,uid=${APP_USER_UID} \
 FROM base AS dev
 
 USER root
-# Install git so its accessible within container and libatomic1 for pyright dependency
+# Install git so its accessible within container
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
-    apt-get update && apt-get install -y --no-install-recommends git libatomic1 \
+    apt-get update && apt-get install -y --no-install-recommends git \
     && rm -rf /var/lib/apt/lists/*
 USER app_user
 
