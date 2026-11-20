@@ -28,85 +28,54 @@ SELECT
     b.item_sequence,
     b.statusid_fk,
     q.status,
-    a.desc_term_label, 
-    a.core_desc_term, 
-    a.qualifier_label, 
-    a.text_value, 
+    dt.term_label AS desc_term_label,
+    cdt.desc_term AS core_desc_term,
+    cdq.desc_qualifier AS qualifier_label,
+    CASE
+        WHEN dv.desc_cvid_fk IS NOT NULL
+        THEN cdcv.core_desc_cv
+        ELSE dv.desc_value
+    END AS text_value,
     parent_join.item_ark AS parent_ark, 
-    v_ot.object_type, 
+    ot.object_type,
     CASE
         WHEN p_ot.object_type IS NOT NULL
         THEN p_ot.object_type
         ELSE ''
     END AS parent_obj_type, 
     cf.file_name, cf.file_location
--- a.desc_term_label, a.qualifier_label, parent_join.item_ark as parent_ark,
--- b.item_ark, v_ot.object_type, a.text_value as tv
-FROM 
-    (SELECT 
-        dv.divid_fk AS item_id, 
-        dv.projectid_fk AS project_id, 
-        cdt.desc_term AS core_desc_term, 
-        cdt.core_desc_termid_pk AS core_desc_termid_id, 
-        dt.term_label AS desc_term_label, 
-        dt.desc_termid_pk AS desc_termid_id, 
-        v_qual.qual_text AS qualifier_label,
-        CASE 
-            WHEN dv.desc_cvid_fk IS NOT NULL 
-            THEN ctrl_values.ctrl_val_text 
-            ELSE dv.desc_value 
-        END AS text_value, 
-        dv.desc_cvid_fk AS desc_control_values_id, 
-        dv.desc_qualifierid_fk AS desc_qualifiers_id, 
-        v_qual.qid AS core_desc_qualifiers_id, 
-        ctrl_values.core_desc_cvid_pk AS core_desc_control_values_id 
-    FROM desc_values dv
-    INNER JOIN desc_terms dt ON dv.desc_termid_fk = dt.desc_termid_pk
-    INNER JOIN core_desc_terms cdt ON dt.core_desc_termid_fk = cdt.CORE_DESC_TERMID_PK
-    LEFT OUTER JOIN
-        (SELECT DISTINCT 
-            dq.core_desc_qualifierid_fk AS qid, 
-            cdq.desc_qualifier AS qual_text, 
-            dq.desc_qualifierid_pk AS desc_qual_pk 
-        FROM desc_qualifiers dq, core_desc_qualifiers cdq 
-        WHERE dq.CORE_DESC_QUALIFIERID_FK = cdq.core_desc_qualifierid_pk ) v_qual
-    ON dv.desc_qualifierid_fk = v_qual.desc_qual_pk
-    LEFT OUTER JOIN
-        (SELECT DISTINCT 
-            cdcv.core_desc_cv AS ctrl_val_text, 
-            dcv.desc_cvid_pk, 
-            cdcv.core_desc_cvid_pk 
-        FROM core_desc_control_values cdcv, desc_control_values dcv 
-        WHERE cdcv.core_desc_cvid_pk = dcv.core_desc_cvid_fk ) ctrl_values 
-    ON dv.desc_cvid_fk = ctrl_values.desc_cvid_pk
-    ) a 
-INNER JOIN project_items b 
-ON a.item_id = b.divid_pk 
-INNER JOIN projects c 
-ON b.projectid_fk = c.projectid_pk 
+FROM projects selected_project
+INNER JOIN desc_values dv ON dv.projectid_fk = selected_project.projectid_pk
+INNER JOIN project_items b ON b.divid_pk = dv.divid_fk
+INNER JOIN projects c ON c.projectid_pk = b.projectid_fk
+INNER JOIN desc_terms dt ON dv.desc_termid_fk = dt.desc_termid_pk
+INNER JOIN core_desc_terms cdt ON dt.core_desc_termid_fk = cdt.core_desc_termid_pk
+LEFT OUTER JOIN desc_qualifiers dq
+    ON dv.desc_qualifierid_fk = dq.desc_qualifierid_pk
+LEFT OUTER JOIN core_desc_qualifiers cdq
+    ON dq.core_desc_qualifierid_fk = cdq.core_desc_qualifierid_pk
+LEFT OUTER JOIN desc_control_values dcv
+    ON dv.desc_cvid_fk = dcv.desc_cvid_pk
+LEFT OUTER JOIN core_desc_control_values cdcv
+    ON dcv.core_desc_cvid_fk = cdcv.core_desc_cvid_pk
 LEFT OUTER JOIN qa_status q
 ON b.statusid_fk = q.statusid_pk
-INNER JOIN 
-    (SELECT objectid_pk, object_label, object_type
-    FROM dl_objects, dl_object_types
-    WHERE object_typeid_fk = object_typeid_pk
-    ) v_ot
-ON v_ot.objectid_pk = b.objectid_fk 
+INNER JOIN dl_objects o ON o.objectid_pk = b.objectid_fk
+INNER JOIN dl_object_types ot ON o.object_typeid_fk = ot.object_typeid_pk
 LEFT OUTER JOIN content_files cf
 ON b.divid_pk = cf.divid_fk 
 AND cf.file_use = 'Master'
 LEFT OUTER JOIN project_items parent_join
 ON b.parent_divid = parent_join.divid_pk
-LEFT OUTER JOIN 
-    (SELECT objectid_pk, object_label, object_type
-    FROM dl_objects, dl_object_types
-    WHERE object_typeid_fk = object_typeid_pk
-    ) p_ot
-ON p_ot.objectid_pk = parent_join.objectid_fk
-WHERE project_id IN 
-    (SELECT projectid_pk 
-    FROM projects 
-    WHERE webapp_name = %(collection)s )
+LEFT OUTER JOIN dl_objects po ON po.objectid_pk = parent_join.objectid_fk
+LEFT OUTER JOIN dl_object_types p_ot ON po.object_typeid_fk = p_ot.object_typeid_pk
+WHERE selected_project.webapp_name = %(collection)s
+ORDER BY
+    b.item_ark,
+    dt.term_label,
+    cdq.desc_qualifier NULLS FIRST,
+    dv.desc_valueid_pk,
+    cf.fileid_pk
 """
 
 
