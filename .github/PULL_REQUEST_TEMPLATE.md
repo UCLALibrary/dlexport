@@ -10,3 +10,7 @@ Add other info as needed: context, implementation details, screenshots, etc.
 
 - [ ] Automated tests added/modified? Add brief info.
 - [ ] Manual testing required? If so, provide details.
+
+### Documentation
+
+- [ ] Documentation reviewed/updated? Add brief info, including link to separate documentation if not in GitHub.
